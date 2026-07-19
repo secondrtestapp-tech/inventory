@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка Apps Script</title>
+<style>
+  body{font-family:-apple-system,sans-serif; padding:20px; background:#F3F1EA; color:#1C1C1A;}
+  #result{white-space:pre-wrap; word-break:break-all; background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px; margin-top:14px; font-family:monospace; font-size:13px;}
+  h3{margin-bottom:4px;}
+  .ok{color:#1a7a1a;}
+  .err{color:#C43D3D;}
+</style>
+</head>
+<body>
+<h3>Проверка ссылки Apps Script</h3>
+<div id="status">Загружаю...</div>
+<div id="result"></div>
+
+<script>
+const url = 'https://script.google.com/macros/s/AKfycbyph9mWX7eqImQWwJWdaQVyFCZQ4VkPS5wUO7kCfTFTE6NIlmXsRqgdxL01Mu49hI2a4g/exec';
+
+fetch(url)
+  .then(r => r.text().then(text => ({status: r.status, text})))
+  .then(({status, text}) => {
+    const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
+    if (status === 200) {
+      statusEl.innerHTML = '<span class="ok">Ответ получен, код 200 — похоже, работает.</span>';
+    } else {
+      statusEl.innerHTML = `<span class="err">Код ответа: ${status}</span>`;
+    }
+    resultEl.textContent = text.slice(0, 2000);
+  })
+  .catch(err => {
+    document.getElementById('status').innerHTML = '<span class="err">Ошибка запроса</span>';
+    document.getElementById('result').textContent = err.toString();
+  });
+</script>
+</body>
+</html>
