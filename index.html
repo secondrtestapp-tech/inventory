@@ -168,10 +168,25 @@
   .confirm-card p{font-size:15px; margin:0 0 18px; color:var(--ink); line-height:1.4;}
   .confirm-actions{display:flex; gap:10px;}
   .btn-danger{flex:1; padding:13px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans); background:var(--danger); color:#fff;}
+
+  .toast{
+    position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(10px); max-width:82%; text-align:center;
+    background:var(--ink); color:var(--paper); padding:10px 16px; border-radius:20px; font-size:13px;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:80;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .suggest-box{
+    background:var(--paper); border:1px solid var(--line); border-radius:10px; margin-top:6px;
+    max-height:170px; overflow-y:auto; display:none;
+  }
+  .suggest-item{padding:10px 12px; font-size:14px; color:var(--ink); border-bottom:1px solid var(--line);}
+  .suggest-item:last-child{border-bottom:none;}
+  .suggest-item:active{background:var(--surface);}
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v11</div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v12</div>
 <div id="app">
 
   <div class="topbar">
@@ -220,7 +235,8 @@
     </div>
     <div class="mic-hint" id="micHint">нажми микрофон и скажи, что кладёшь</div>
 
-    <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26"></textarea>
+    <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
+    <div class="suggest-box" id="suggestBox"></div>
 
     <div class="qty-row">
       <span class="qty-label">Количество</span>
@@ -281,6 +297,8 @@
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
 </div>
 
 <script>
@@ -294,6 +312,89 @@ let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
 let packPhotosArr = [];
+
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyph9mWX7eqImQWwJWdaQVyFCZQ4VkPS5wUO7kCfTFTE6NIlmXsRqgdxL01Mu49hI2a4g/exec';
+let knownTexts = [];
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+async function loadKnownTexts(){
+  try{
+    const res = await fetch(APPS_SCRIPT_URL);
+    const data = await res.json();
+    const set = new Set();
+    (data.positions || []).forEach(p => { if(p.text) set.add(p.text); });
+    knownTexts = [...set];
+  } catch(e){
+    knownTexts = [];
+  }
+}
+
+async function sendPositionToServer(packNum, posObj){
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'position',
+        pack: packNum,
+        posNum: posObj.num,
+        qty: posObj.qty,
+        text: posObj.text,
+        photos: posObj.photos || []
+      })
+    });
+    const data = await res.json();
+    if(data && data.ok){
+      showToast('Сохранено в Google');
+      if(posObj.text && !knownTexts.includes(posObj.text)) knownTexts.push(posObj.text);
+    } else {
+      showToast('Не удалось сохранить: ' + (data && data.error ? data.error : 'неизвестная ошибка'));
+    }
+  } catch(e){
+    showToast('Нет связи с Google — проверь интернет');
+  }
+}
+
+async function sendPackPhotoToServer(packNum, dataUrl, idx){
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'pack_photo', pack: packNum, photo: dataUrl, idx: idx })
+    });
+    const data = await res.json();
+    if(data && data.ok){ showToast('Фото пачки сохранено'); }
+    else { showToast('Не удалось сохранить фото пачки'); }
+  } catch(e){
+    showToast('Нет связи с Google — проверь интернет');
+  }
+}
+
+function onPosTextInput(){
+  const val = document.getElementById('posText').value.trim().toLowerCase();
+  const box = document.getElementById('suggestBox');
+  if(!val){ box.style.display='none'; box.innerHTML=''; return; }
+  const matches = knownTexts.filter(t => t.toLowerCase().includes(val) && t.toLowerCase() !== val).slice(0,5);
+  if(!matches.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.innerHTML = matches.map(t => `<div class="suggest-item" onclick="pickSuggestion(this)">${t}</div>`).join('');
+  box.style.display = 'block';
+}
+function pickSuggestion(el){
+  document.getElementById('posText').value = el.textContent;
+  const box = document.getElementById('suggestBox');
+  box.style.display = 'none';
+  box.innerHTML = '';
+}
+function hideSuggestions(){
+  const box = document.getElementById('suggestBox');
+  box.style.display = 'none';
+  box.innerHTML = '';
+}
 
 function toggleSort(){
   sortAscending = !sortAscending;
@@ -385,6 +486,7 @@ async function addPackPhoto(e){
   packPhotosArr.push(url);
   renderPackPhotos();
   e.target.value = '';
+  sendPackPhotoToServer(currentPackNum, url, packPhotosArr.length);
 }
 function renderPackPhotos(){
   const container = document.getElementById('packPhotos');
@@ -415,6 +517,7 @@ function openSheetNew(){
   document.getElementById('deleteBtn').style.display = 'none';
   sheetPhotos = [];
   renderSheetPhotos();
+  hideSuggestions();
   showSheet();
 }
 
@@ -430,6 +533,7 @@ function openSheetEdit(id){
   document.getElementById('deleteBtn').style.display = 'block';
   sheetPhotos = [...p.photos];
   renderSheetPhotos();
+  hideSuggestions();
   showSheet();
 }
 
@@ -501,16 +605,21 @@ function renderSheetPhotos(){
 function saveSheet(){
   const text = document.getElementById('posText').value.trim();
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
+  const num = parseInt(document.getElementById('sheetNum').textContent);
+  let savedObj;
   if(editingId===null){
-    positions.push({ id: nextId++, num: parseInt(document.getElementById('sheetNum').textContent), text: text || null, qty: qty, photos:[...sheetPhotos] });
+    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos] };
+    positions.push(savedObj);
   } else {
     const p = positions.find(x=>x.id===editingId);
-    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; }
+    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; savedObj = p; }
   }
   document.getElementById('backdrop').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
+  hideSuggestions();
   stopMicVisual();
   render();
+  if(savedObj) sendPositionToServer(currentPackNum, savedObj);
 }
 
 let pendingDeleteId = null;
@@ -582,6 +691,8 @@ function render(){
     list.appendChild(card);
   });
 }
+
+loadKnownTexts();
 </script>
 </body>
 </html>
