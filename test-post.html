@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тест POST</title>
+<style>
+  body{font-family:-apple-system,sans-serif; padding:20px; background:#F3F1EA; color:#1C1C1A;}
+  button{font-size:16px; padding:14px 20px; border-radius:10px; border:none; background:#FF6B1A; color:#111; font-weight:700; width:100%;}
+  #result{white-space:pre-wrap; word-break:break-all; background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px; margin-top:14px; font-family:monospace; font-size:13px; min-height:40px;}
+  .ok{color:#1a7a1a; font-weight:bold;}
+  .err{color:#C43D3D; font-weight:bold;}
+</style>
+</head>
+<body>
+<h3>Тест 1: GET (чтение подсказок)</h3>
+<button onclick="testGet()">Проверить GET</button>
+<div id="statusGet" style="margin-top:14px;">Ещё не отправлено</div>
+<div id="resultGet"></div>
+
+<h3 style="margin-top:28px;">Тест 2: POST (отправка позиции)</h3>
+<button onclick="testPost()">Отправить тестовую позицию</button>
+<div id="status" style="margin-top:14px;">Ещё не отправлено</div>
+<div id="result"></div>
+
+<script>
+const url = 'https://script.google.com/macros/s/AKfycbyph9mWX7eqImQWwJWdaQVyFCZQ4VkPS5wUO7kCfTFTE6NIlmXsRqgdxL01Mu49hI2a4g/exec';
+
+async function testGet(){
+  document.getElementById('statusGet').textContent = 'Отправляю...';
+  document.getElementById('resultGet').textContent = '';
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    document.getElementById('statusGet').innerHTML = '<span class="ok">Ответ получен, код ' + res.status + '</span>';
+    document.getElementById('resultGet').textContent = text.slice(0, 1500);
+  } catch(err) {
+    document.getElementById('statusGet').innerHTML = '<span class="err">Ошибка запроса</span>';
+    document.getElementById('resultGet').textContent = err.toString() + '\n\n' + (err.stack || '');
+  }
+}
+
+async function testPost(){
+  document.getElementById('status').textContent = 'Отправляю...';
+  document.getElementById('result').textContent = '';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'position',
+        pack: '999',
+        posNum: 1,
+        qty: 1,
+        text: 'ТЕСТ из test-post.html',
+        photos: []
+      })
+    });
+    const text = await res.text();
+    document.getElementById('status').innerHTML = '<span class="ok">Ответ получен, код ' + res.status + '</span>';
+    document.getElementById('result').textContent = text.slice(0, 1500);
+  } catch(err) {
+    document.getElementById('status').innerHTML = '<span class="err">Ошибка запроса</span>';
+    document.getElementById('result').textContent = err.toString() + '\n\n' + (err.stack || '');
+  }
+}
+</script>
+</body>
+</html>
