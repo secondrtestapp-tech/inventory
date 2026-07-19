@@ -21,4 +21,567 @@
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; padding:0; background:var(--surface); color:var(--ink); font-family:var(--sans);}
   body{display:flex; justify-content:center;}
-  #app{width:100%; max-width:480px; min-height:100vh; background
+  #app{width:100%; max-width:480px; min-height:100vh; background:var(--surface); position:relative; display:flex; flex-direction:column;}
+
+  .topbar{
+    background:var(--ink); color:var(--paper);
+    padding:16px 18px 14px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:20;
+  }
+  .pack-tag .label{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#B9B6AC;}
+  .pack-tag .num{font-family:var(--mono); font-size:22px; font-weight:700; background:var(--accent); color:var(--ink); padding:2px 10px; border-radius:4px; letter-spacing:.02em;}
+  .scan-btn{
+    background:none; border:1px solid #4A4842; color:#E8E6DF; font-family:var(--sans);
+    font-size:13px; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:6px;
+  }
+  .pack-tag-btn{background:none; border:none; padding:0; font:inherit; color:inherit; display:flex; align-items:center; gap:6px; text-align:left;}
+  .pack-chevron{color:#8A8780; font-size:11px;}
+
+  .pack-list-item{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    padding:13px 14px; border-radius:10px; border:1px solid var(--line); background:var(--surface);
+    font-family:var(--sans);
+  }
+  .pack-list-item.active{border-color:var(--accent); background:#FFF3E8;}
+  .pack-list-num{font-family:var(--mono); font-weight:700; font-size:16px; background:var(--accent); color:var(--ink); padding:3px 11px; border-radius:5px;}
+  .pack-list-meta{font-size:13px; color:var(--ink-soft);}
+  .pack-num-input{
+    width:100%; padding:13px; border:1px solid var(--line); border-radius:10px; font-family:var(--mono); font-size:18px;
+    text-align:center; margin-bottom:16px; background:var(--surface); color:var(--ink);
+  }
+  .pack-num-input:focus{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .pack-photos{padding:14px 18px 6px; display:flex; gap:10px; align-items:center; overflow-x:auto;}
+  .thumb-wrap{position:relative; flex:none;}
+  .thumb-wrap .thumb{width:56px; height:56px; border-radius:8px; object-fit:cover; border:1px solid var(--line); display:block;}
+  .thumb-del{
+    position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
+    background:var(--ink); color:var(--paper); border:2px solid var(--surface); font-size:12px; line-height:1;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .add-pack-photo{
+    width:56px; height:56px; border-radius:8px; border:2px dashed #C9C4B4; background:none;
+    display:flex; align-items:center; justify-content:center; flex:none; color:var(--ink-soft);
+  }
+  .add-pack-photo svg{width:22px; height:22px;}
+
+  .section-label{padding:14px 18px 6px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:600;}
+  .sort-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .sort-toggle{
+    background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:5px 12px;
+    font-size:11px; letter-spacing:.04em; text-transform:none; color:var(--ink-soft); font-family:var(--sans); font-weight:600;
+    flex:none; white-space:nowrap;
+  }
+  .sort-toggle:active{background:var(--surface);}
+
+  .positions{padding:0 18px 120px; display:flex; flex-direction:column; gap:10px;}
+  .empty-hint{color:var(--ink-soft); font-size:14px; padding:20px 4px; text-align:center; line-height:1.5;}
+  .position-card{
+    background:var(--paper); border-radius:12px; border:1px solid var(--line);
+    display:flex; align-items:center; gap:10px; padding:10px 10px 10px 12px;
+    animation:pop .25s ease;
+  }
+  @keyframes pop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+  .pos-num{
+    font-family:var(--mono); font-weight:700; font-size:14px; color:var(--paper); background:var(--steel);
+    width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .pos-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;}
+  .pos-text{font-size:14px; line-height:1.35; word-break:break-word;}
+  .pos-text.placeholder{color:var(--ink-soft); font-style:italic;}
+  .pos-thumbs{display:flex; gap:6px;}
+  .pos-thumbs img{width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid var(--line);}
+  .pos-thumbs .more{
+    width:34px; height:34px; border-radius:6px; background:var(--surface); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--ink-soft); font-weight:600;
+  }
+  .qty-badge{
+    flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:14px;
+    background:var(--surface); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:6px 10px; min-width:34px;
+  }
+  .pos-trash{
+    flex:none; width:36px; height:36px; border-radius:9px; border:none; background:var(--surface); color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pos-trash svg{width:18px; height:18px;}
+  .pos-trash:active{color:var(--danger);}
+
+  .fab{position:fixed; right:0; bottom:0; max-width:480px; width:100%; display:flex; justify-content:flex-end; padding:0 18px 22px; pointer-events:none; left:50%; transform:translateX(-50%);}
+  .fab button{
+    pointer-events:auto; width:60px; height:60px; border-radius:50%; background:var(--accent); color:var(--ink);
+    border:none; font-size:30px; box-shadow:0 6px 16px rgba(217,86,14,.4); display:flex; align-items:center; justify-content:center;
+  }
+  .fab button:active{background:var(--accent-dark); transform:scale(.96);}
+
+  .sheet-backdrop{position:fixed; inset:0; background:rgba(28,28,26,.45); z-index:40; opacity:0; pointer-events:none; transition:opacity .2s ease;}
+  .sheet-backdrop.open{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:fixed; left:50%; bottom:0; transform:translate(-50%, 100%); transition:transform .28s cubic-bezier(.32,.72,0,1);
+    width:100%; max-width:480px; background:var(--paper); border-radius:20px 20px 0 0; z-index:41;
+    padding:10px 18px calc(20px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto;
+  }
+  .sheet.open{transform:translate(-50%, 0);}
+  .sheet-handle{width:36px; height:4px; background:var(--line); border-radius:2px; margin:6px auto 14px;}
+  .sheet-title{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .sheet-title .pos-num{width:38px; height:38px; font-size:15px;}
+  .sheet-title h3{margin:0; font-size:15px; color:var(--ink-soft); font-weight:600; flex:1;}
+
+  .mic-btn{width:40px; height:40px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none;}
+  .mic-btn svg{width:18px; height:18px;}
+  .mic-btn.recording{background:var(--danger); animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
+  .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 14px 2px;}
+
+  .qty-row{display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
+  .qty-label{font-size:13px; color:var(--ink-soft); font-weight:600;}
+  .qty-stepper{display:flex; align-items:center; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .qty-stepper button{width:38px; height:38px; border:none; background:var(--surface); color:var(--ink); font-size:18px; font-weight:600; display:flex; align-items:center; justify-content:center;}
+  .qty-stepper button:active{background:var(--line);}
+  .qty-stepper input{width:46px; height:38px; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line); text-align:center; font-size:15px; font-weight:700; font-family:var(--mono); color:var(--ink); background:var(--paper);}
+  .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+
+  .sheet textarea{width:100%; min-height:64px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
+  .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .photo-row{display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap;}
+  .photo-attach{width:52px; height:52px; border-radius:10px; border:2px dashed #C9C4B4; background:none; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); flex:none;}
+  .photo-attach svg{width:22px; height:22px;}
+  .sheet-photo-thumb{width:52px; height:52px; border-radius:10px; object-fit:cover; border:1px solid var(--line); display:block;}
+
+  .sheet-actions{display:flex; gap:10px; margin-top:20px;}
+  .btn-secondary, .btn-primary{flex:1; padding:14px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans);}
+  .btn-secondary{background:var(--surface); color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:active{background:#000;}
+  .btn-delete{width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1px solid #EFC9C9; background:#FDF3F3; color:var(--danger); font-size:14px; font-weight:600;}
+
+  .note{margin:0 18px 18px; padding:12px 14px; background:#FFF3E8; border:1px solid #F3D8BC; border-radius:10px; font-size:12.5px; color:#8A4A17; line-height:1.5;}
+
+  .lightbox{position:fixed; inset:0; background:rgba(10,10,9,.94); z-index:60; display:none; align-items:center; justify-content:center; padding:24px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:8px;}
+  .lightbox-close{position:absolute; top:20px; right:20px; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.15); color:#fff; border:none; font-size:20px;}
+
+  .confirm-overlay{position:fixed; inset:0; background:rgba(28,28,26,.55); z-index:70; display:none; align-items:center; justify-content:center; padding:24px;}
+  .confirm-overlay.open{display:flex;}
+  .confirm-card{background:var(--paper); border-radius:14px; padding:22px 20px; max-width:300px; width:100%; text-align:center;}
+  .confirm-card p{font-size:15px; margin:0 0 18px; color:var(--ink); line-height:1.4;}
+  .confirm-actions{display:flex; gap:10px;}
+  .btn-danger{flex:1; padding:13px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans); background:var(--danger); color:#fff;}
+</style>
+</head>
+<body>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v11</div>
+<div id="app">
+
+  <div class="topbar">
+    <button class="pack-tag-btn" onclick="openPackList()">
+      <div class="pack-tag">
+        <div class="label">Пачка</div>
+        <div class="num" id="packNum">030</div>
+      </div>
+      <span class="pack-chevron">▾</span>
+    </button>
+    <button class="scan-btn" onclick="askNewPack()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20v.01"/></svg>
+      сканировать другую
+    </button>
+  </div>
+
+  <div class="section-label">Фото пачки целиком</div>
+  <div class="pack-photos" id="packPhotos">
+    <button class="add-pack-photo" id="addPackPhotoBtn" onclick="document.getElementById('packPhotoInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <input type="file" id="packPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addPackPhoto(event)">
+  </div>
+
+  <div class="section-label sort-row">
+    <span>Позиции в пачке (<span id="posCount">0</span>)</span>
+    <button class="sort-toggle" id="sortToggle" onclick="toggleSort()">сначала новые</button>
+  </div>
+  <div class="positions" id="positions">
+    <div class="empty-hint" id="emptyHint">Пока пусто. Нажми «+» внизу, чтобы добавить первую позицию.</div>
+  </div>
+
+  <div class="note">Прототип: голос имитирован (по нажатию на микрофон подставляется пример текста). Камера — рабочая. Тап по фото открывает его на весь экран. Тап по позиции — открывает её для просмотра/редактирования.</div>
+
+  <div class="fab"><button onclick="openSheetNew()">+</button></div>
+
+  <div class="sheet-backdrop" id="backdrop" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">
+      <div class="pos-num" id="sheetNum">—</div>
+      <h3 id="sheetTitleText">Новая позиция</h3>
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+      </button>
+    </div>
+    <div class="mic-hint" id="micHint">нажми микрофон и скажи, что кладёшь</div>
+
+    <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26"></textarea>
+
+    <div class="qty-row">
+      <span class="qty-label">Количество</span>
+      <div class="qty-stepper">
+        <button type="button" onclick="changeQty(-1)">−</button>
+        <input type="number" id="qtyInput" value="1" min="1" inputmode="numeric">
+        <button type="button" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+
+    <div class="photo-row" id="sheetPhotoRow">
+      <button class="photo-attach" onclick="document.getElementById('posPhotoInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <input type="file" id="posPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addSheetPhoto(event)">
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeSheet()">Отмена</button>
+      <button class="btn-primary" onclick="saveSheet()" id="saveBtn">Закрыть позицию</button>
+    </div>
+    <button class="btn-delete" id="deleteBtn" style="display:none" onclick="askDeleteFromSheet()">Удалить позицию</button>
+  </div>
+
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox(event)">✕</button>
+    <img id="lightboxImg" src="">
+  </div>
+
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-card">
+      <p>Удалить эту позицию?</p>
+      <div class="confirm-actions">
+        <button class="btn-secondary" onclick="closeConfirm()">Отмена</button>
+        <button class="btn-danger" onclick="confirmDelete()">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="packListBackdrop" onclick="closePackList()"></div>
+  <div class="sheet" id="packListSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title"><h3 style="flex:1">Все пачки</h3></div>
+    <div id="packListItems" style="display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow-y:auto;"></div>
+    <div class="sheet-actions" style="margin-top:16px;">
+      <button class="btn-primary" style="flex:1" onclick="askNewPack()">+ Новая / другая пачка</button>
+    </div>
+  </div>
+
+  <div class="confirm-overlay" id="newPackOverlay">
+    <div class="confirm-card">
+      <p>Номер пачки (скан / ввод)</p>
+      <input type="text" id="newPackNumInput" class="pack-num-input" inputmode="numeric" placeholder="напр. 031">
+      <div class="confirm-actions">
+        <button class="btn-secondary" onclick="closeNewPackModal()">Отмена</button>
+        <button class="btn-primary" onclick="confirmNewPack()">Открыть</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let positions = [];
+let posCounter = 0;
+let nextId = 1;
+let editingId = null;
+let sheetPhotos = [];
+let recording = false;
+let sortAscending = false;
+let packs = {};
+let currentPackNum = '030';
+let packPhotosArr = [];
+
+function toggleSort(){
+  sortAscending = !sortAscending;
+  document.getElementById('sortToggle').textContent = sortAscending ? 'по номеру ↑' : 'сначала новые';
+  render();
+}
+
+function askNewPack(){
+  document.getElementById('newPackNumInput').value = '';
+  closePackList();
+  document.getElementById('newPackOverlay').classList.add('open');
+}
+function closeNewPackModal(){
+  document.getElementById('newPackOverlay').classList.remove('open');
+}
+function confirmNewPack(){
+  const v = document.getElementById('newPackNumInput').value.trim();
+  if(!v) return;
+  document.getElementById('newPackOverlay').classList.remove('open');
+  switchToPack(v);
+}
+
+function switchToPack(num){
+  // persist current pack's live state
+  packs[currentPackNum] = {
+    photos: [...packPhotosArr],
+    positions: positions.map(p=>({...p, photos:[...p.photos]})),
+    posCounter: posCounter
+  };
+  currentPackNum = num;
+  const saved = packs[num];
+  if(saved){
+    positions = saved.positions.map(p=>({...p, photos:[...p.photos]}));
+    posCounter = saved.posCounter;
+    packPhotosArr = [...saved.photos];
+  } else {
+    positions = [];
+    posCounter = 0;
+    packPhotosArr = [];
+    packs[num] = { photos: [], positions: [], posCounter: 0 };
+  }
+  document.getElementById('packNum').textContent = num;
+  sortAscending = false;
+  document.getElementById('sortToggle').textContent = 'сначала новые';
+  renderPackPhotos();
+  render();
+  closePackList();
+}
+
+function openPackList(){
+  const container = document.getElementById('packListItems');
+  container.innerHTML = '';
+  const merged = {...packs};
+  merged[currentPackNum] = { photos: packPhotosArr, positions: positions };
+  const nums = Object.keys(merged).sort((a,b)=>{
+    const na = parseInt(a), nb = parseInt(b);
+    if(!isNaN(na) && !isNaN(nb)) return nb - na;
+    return b.localeCompare(a);
+  });
+  nums.forEach(num=>{
+    const p = merged[num];
+    const btn = document.createElement('button');
+    btn.className = 'pack-list-item' + (num===currentPackNum ? ' active' : '');
+    btn.onclick = ()=> switchToPack(num);
+    btn.innerHTML = `<span class="pack-list-num">${num}</span><span class="pack-list-meta">${p.positions.length} поз.${num===currentPackNum ? ' · текущая' : ''}</span>`;
+    container.appendChild(btn);
+  });
+  document.getElementById('packListBackdrop').classList.add('open');
+  document.getElementById('packListSheet').classList.add('open');
+}
+function closePackList(){
+  document.getElementById('packListBackdrop').classList.remove('open');
+  document.getElementById('packListSheet').classList.remove('open');
+}
+
+function fileToDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addPackPhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const url = await fileToDataUrl(file);
+  packPhotosArr.push(url);
+  renderPackPhotos();
+  e.target.value = '';
+}
+function renderPackPhotos(){
+  const container = document.getElementById('packPhotos');
+  const addBtn = document.getElementById('addPackPhotoBtn');
+  container.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
+  [...packPhotosArr].reverse().forEach((url)=>{
+    const realIdx = packPhotosArr.indexOf(url);
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-wrap';
+    const img = document.createElement('img');
+    img.className='thumb'; img.src=url; img.onclick=()=>openLightbox(url);
+    const del = document.createElement('button');
+    del.className='thumb-del'; del.textContent='×';
+    del.onclick=(ev)=>{ev.stopPropagation(); const i=packPhotosArr.indexOf(url); if(i>-1) packPhotosArr.splice(i,1); renderPackPhotos();};
+    wrap.appendChild(img); wrap.appendChild(del);
+    container.insertBefore(wrap, addBtn);
+  });
+}
+
+function openSheetNew(){
+  editingId = null;
+  posCounter += 1;
+  document.getElementById('sheetNum').textContent = posCounter;
+  document.getElementById('sheetTitleText').textContent = 'Новая позиция';
+  document.getElementById('posText').value = '';
+  document.getElementById('qtyInput').value = 1;
+  document.getElementById('saveBtn').textContent = 'Закрыть позицию';
+  document.getElementById('deleteBtn').style.display = 'none';
+  sheetPhotos = [];
+  renderSheetPhotos();
+  showSheet();
+}
+
+function openSheetEdit(id){
+  const p = positions.find(x=>x.id===id);
+  if(!p) return;
+  editingId = id;
+  document.getElementById('sheetNum').textContent = p.num;
+  document.getElementById('sheetTitleText').textContent = 'Позиция №' + p.num;
+  document.getElementById('posText').value = p.text || '';
+  document.getElementById('qtyInput').value = p.qty || 1;
+  document.getElementById('saveBtn').textContent = 'Сохранить';
+  document.getElementById('deleteBtn').style.display = 'block';
+  sheetPhotos = [...p.photos];
+  renderSheetPhotos();
+  showSheet();
+}
+
+function showSheet(){
+  document.getElementById('backdrop').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+function closeSheet(){
+  if(editingId===null){ posCounter -= 1; } // creating cancelled — number not consumed
+  document.getElementById('backdrop').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  stopMicVisual();
+}
+
+function changeQty(delta){
+  const inp = document.getElementById('qtyInput');
+  let v = parseInt(inp.value) || 1;
+  v = Math.max(1, v + delta);
+  inp.value = v;
+}
+
+function toggleMic(){
+  const btn = document.getElementById('micBtn');
+  const hint = document.getElementById('micHint');
+  if(!recording){
+    recording = true;
+    btn.classList.add('recording');
+    hint.textContent = 'слушаю...';
+    setTimeout(()=>{
+      if(!recording) return;
+      const ta = document.getElementById('posText');
+      const samples = ['опора конвейера, 1.5 м','кронштейн, деталь номер '+ (posCounter+25),'кабель управления, 5 м','ролик приводной, б/у'];
+      ta.value = samples[Math.floor(Math.random()*samples.length)];
+      stopMicVisual();
+    }, 1400);
+  } else {
+    stopMicVisual();
+  }
+}
+function stopMicVisual(){
+  recording = false;
+  document.getElementById('micBtn').classList.remove('recording');
+  document.getElementById('micHint').textContent = 'нажми и скажи, что кладёшь';
+}
+
+async function addSheetPhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const url = await fileToDataUrl(file);
+  sheetPhotos.push(url);
+  renderSheetPhotos();
+  e.target.value = '';
+}
+function removeSheetPhoto(idx){
+  sheetPhotos.splice(idx,1);
+  renderSheetPhotos();
+}
+function renderSheetPhotos(){
+  const row = document.getElementById('sheetPhotoRow');
+  row.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
+  sheetPhotos.forEach((url,idx)=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'thumb-wrap';
+    wrap.innerHTML = `<img class="sheet-photo-thumb" src="${url}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="event.stopPropagation(); removeSheetPhoto(${idx})">×</button>`;
+    row.appendChild(wrap);
+  });
+}
+
+function saveSheet(){
+  const text = document.getElementById('posText').value.trim();
+  const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
+  if(editingId===null){
+    positions.push({ id: nextId++, num: parseInt(document.getElementById('sheetNum').textContent), text: text || null, qty: qty, photos:[...sheetPhotos] });
+  } else {
+    const p = positions.find(x=>x.id===editingId);
+    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; }
+  }
+  document.getElementById('backdrop').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  stopMicVisual();
+  render();
+}
+
+let pendingDeleteId = null;
+let pendingDeleteFromSheet = false;
+
+function askDeletePosition(id, ev){
+  if(ev) ev.stopPropagation();
+  pendingDeleteId = id;
+  pendingDeleteFromSheet = false;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function askDeleteFromSheet(){
+  pendingDeleteId = editingId;
+  pendingDeleteFromSheet = true;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm(){
+  document.getElementById('confirmOverlay').classList.remove('open');
+  pendingDeleteId = null;
+}
+function confirmDelete(){
+  const id = pendingDeleteId;
+  const fromSheet = pendingDeleteFromSheet;
+  document.getElementById('confirmOverlay').classList.remove('open');
+  pendingDeleteId = null;
+  if(id==null) return;
+  positions = positions.filter(x=>x.id!==id);
+  if(fromSheet){
+    document.getElementById('backdrop').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
+  }
+  render();
+}
+
+function openLightbox(url, ev){
+  if(ev) ev.stopPropagation();
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(ev){
+  if(ev) ev.stopPropagation();
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+function render(){
+  const list = document.getElementById('positions');
+  const hint = document.getElementById('emptyHint');
+  document.getElementById('posCount').textContent = positions.length;
+  list.querySelectorAll('.position-card').forEach(el=>el.remove());
+  hint.style.display = positions.length ? 'none' : 'block';
+  positions.slice().sort((a,b)=> sortAscending ? a.num-b.num : b.num-a.num).forEach(p=>{
+    const card = document.createElement('div');
+    card.className='position-card';
+    card.onclick = ()=>openSheetEdit(p.id);
+    const maxShown = 3;
+    const shown = p.photos.slice(0,maxShown).map(url=>`<img src="${url}" onclick="openLightbox('${url}', event)">`).join('');
+    const more = p.photos.length > maxShown ? `<div class="more">+${p.photos.length - maxShown}</div>` : '';
+    card.innerHTML = `
+      <div class="pos-num">${p.num}</div>
+      <div class="pos-body">
+        <div class="pos-text ${p.text?'':'placeholder'}">${p.text || 'без описания — см. фото'}</div>
+        ${p.photos.length ? `<div class="pos-thumbs">${shown}${more}</div>` : ''}
+      </div>
+      <div class="qty-badge">×${p.qty || 1}</div>
+      <button class="pos-trash" onclick="askDeletePosition(${p.id}, event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/></svg>
+      </button>
+    `;
+    list.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>
