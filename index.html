@@ -76,6 +76,9 @@
 
   .positions{padding:0 18px 120px; display:flex; flex-direction:column; gap:10px;}
   .empty-hint{color:var(--ink-soft); font-size:14px; padding:20px 4px; text-align:center; line-height:1.5;}
+  .loading-hint{color:var(--ink-soft); font-size:14px; padding:20px 4px; text-align:center; line-height:1.5;}
+  .spinner{display:inline-block; width:14px; height:14px; margin-right:8px; vertical-align:-2px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
   .position-card{
     background:var(--paper); border-radius:12px; border:1px solid var(--line);
     display:flex; align-items:center; gap:10px; padding:10px 10px 10px 12px;
@@ -226,6 +229,7 @@
   </div>
   <div class="positions" id="positions">
     <div class="empty-hint" id="emptyHint">Пока пусто. Нажми «+» внизу, чтобы добавить первую позицию.</div>
+    <div class="loading-hint" id="loadingHint" style="display:none;"><span class="spinner"></span>загружаю позиции…</div>
   </div>
 
   <div class="note">Голос распознаётся по-настоящему (OpenAI): нажми микрофон, скажи — нажми ещё раз, чтобы закончить и распознать. Камера — рабочая. Тап по фото открывает его на весь экран. Тап по позиции — открывает её для просмотра/редактирования.</div>
@@ -311,7 +315,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v27';
+const APP_VERSION = 'v28';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -325,6 +329,7 @@ let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
 let packRequestId = 0; // счётчик заходов в пачку — для отбрасывания устаревших ответов сети
+let syncingPack = false; // идёт ли сейчас загрузка данных пачки с сервера — для спиннера вместо "пусто"
 
 const VIEW_STATE_KEY = 'opis_last_view';
 
@@ -642,6 +647,7 @@ async function switchToPack(rawNum){
   }
   await mergePendingIntoCurrentPack();
   renderPackPhotos();
+  syncingPack = true; // пока не пришёл ответ с сервера — если позиций ещё нет, показываем спиннер, а не "пусто"
   debugLog(`  id=${myRequestId} render#1 (кэш/пусто): ${positions.length} поз.`);
   render();
 
@@ -661,6 +667,7 @@ async function switchToPack(rawNum){
   if(myRequestId !== packRequestId){ debugLog(`  id=${myRequestId} УСТАРЕЛ, пропускаю применение`); return; } // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
 
   if(fresh){
+    syncingPack = false;
     await applyFresh(fresh);
   } else {
     // первая попытка не удалась (сеть/Apps Script не ответили вовремя) — раньше на этом всё
@@ -670,9 +677,11 @@ async function switchToPack(rawNum){
     fresh = await syncFromServer(num);
     debugLog(`  id=${myRequestId} повторная попытка: ${fresh ? fresh.positions.length+' поз.' : 'снова null'}`);
     if(myRequestId !== packRequestId){ return; }
+    syncingPack = false;
     if(fresh){
       await applyFresh(fresh);
     } else {
+      render(); // спиннер сменяется на обычное "пока пусто"
       showToast('Не удалось обновить пачку ' + num + ' — проверь связь и открой её ещё раз');
     }
   }
@@ -1009,9 +1018,19 @@ function render(){
   }catch(e){}
   const list = document.getElementById('positions');
   const hint = document.getElementById('emptyHint');
+  const loadingHint = document.getElementById('loadingHint');
   document.getElementById('posCount').textContent = positions.length;
   list.querySelectorAll('.position-card').forEach(el=>el.remove());
-  hint.style.display = positions.length ? 'none' : 'block';
+  if(positions.length){
+    hint.style.display = 'none';
+    loadingHint.style.display = 'none';
+  } else if(syncingPack){
+    hint.style.display = 'none';
+    loadingHint.style.display = 'block';
+  } else {
+    hint.style.display = 'block';
+    loadingHint.style.display = 'none';
+  }
   positions.slice().sort((a,b)=> sortAscending ? a.num-b.num : b.num-a.num).forEach(p=>{
     try{
       const card = document.createElement('div');
