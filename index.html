@@ -311,7 +311,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v25';
+const APP_VERSION = 'v27';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -325,6 +325,24 @@ let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
 let packRequestId = 0; // счётчик заходов в пачку — для отбрасывания устаревших ответов сети
+
+const VIEW_STATE_KEY = 'opis_last_view';
+
+// Запоминает, какую пачку и (если открыта) какую именно позицию видел человек —
+// чтобы после обновления страницы вернуть его туда же, а не всегда на пачку "030".
+// Хранит номер позиции (не внутренний id — он каждый раз генерируется заново при
+// загрузке с сервера и не переживает обновление страницы).
+function saveViewState(posNum){
+  try{
+    localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ pack: currentPackNum, posNum: posNum ?? null }));
+  } catch(e){ /* localStorage недоступен (приватный режим и т.п.) — просто не запоминаем */ }
+}
+function loadViewState(){
+  try{
+    const raw = localStorage.getItem(VIEW_STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
 
 function debugLog(msg){
   const el = document.getElementById('debugLog');
@@ -603,6 +621,7 @@ async function switchToPack(rawNum){
     posCounter: posCounter
   };
   currentPackNum = num;
+  saveViewState(null); // новая пачка — открытой позиции пока нет
   const myRequestId = ++packRequestId; // метка именно этого захода в пачку
   debugLog(`  requestId=${myRequestId}`);
   document.getElementById('packNum').textContent = num;
@@ -626,11 +645,7 @@ async function switchToPack(rawNum){
   debugLog(`  id=${myRequestId} render#1 (кэш/пусто): ${positions.length} поз.`);
   render();
 
-  // потом подтягиваем настоящее состояние из Google, если есть связь
-  const fresh = await syncFromServer(num);
-  debugLog(`  id=${myRequestId} syncFromServer вернул: ${fresh ? fresh.positions.length+' поз.' : 'null (ошибка сети)'}, текущий requestId сейчас=${packRequestId}`);
-  if(myRequestId !== packRequestId){ debugLog(`  id=${myRequestId} УСТАРЕЛ, пропускаю применение`); return; } // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
-  if(fresh){
+  const applyFresh = async (fresh) => {
     positions = fresh.positions;
     packPhotosArr = fresh.packPhotos;
     posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
@@ -638,6 +653,28 @@ async function switchToPack(rawNum){
     renderPackPhotos();
     debugLog(`  id=${myRequestId} render#2 (с сервера): ${positions.length} поз.`);
     render();
+  };
+
+  // потом подтягиваем настоящее состояние из Google, если есть связь
+  let fresh = await syncFromServer(num);
+  debugLog(`  id=${myRequestId} syncFromServer вернул: ${fresh ? fresh.positions.length+' поз.' : 'null (ошибка сети)'}, текущий requestId сейчас=${packRequestId}`);
+  if(myRequestId !== packRequestId){ debugLog(`  id=${myRequestId} УСТАРЕЛ, пропускаю применение`); return; } // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
+
+  if(fresh){
+    await applyFresh(fresh);
+  } else {
+    // первая попытка не удалась (сеть/Apps Script не ответили вовремя) — раньше на этом всё
+    // молча заканчивалось, и приходилось переключать пачку туда-сюда руками. Пробуем ещё раз сами.
+    await new Promise(r => setTimeout(r, 1500));
+    if(myRequestId !== packRequestId){ debugLog(`  id=${myRequestId} УСТАРЕЛ к моменту повтора, пропускаю`); return; }
+    fresh = await syncFromServer(num);
+    debugLog(`  id=${myRequestId} повторная попытка: ${fresh ? fresh.positions.length+' поз.' : 'снова null'}`);
+    if(myRequestId !== packRequestId){ return; }
+    if(fresh){
+      await applyFresh(fresh);
+    } else {
+      showToast('Не удалось обновить пачку ' + num + ' — проверь связь и открой её ещё раз');
+    }
   }
   packs[num] = { photos:[...packPhotosArr], positions: positions.map(p=>({...p, photos:[...p.photos]})), posCounter: posCounter };
 }
@@ -737,6 +774,7 @@ function renderPackPhotos(){
 
 function openSheetNew(){
   editingId = null;
+  saveViewState(null);
   posCounter += 1;
   document.getElementById('sheetNum').textContent = posCounter;
   document.getElementById('sheetTitleText').textContent = 'Новая позиция';
@@ -754,6 +792,7 @@ function openSheetEdit(id){
   const p = positions.find(x=>x.id===id);
   if(!p) return;
   editingId = id;
+  saveViewState(p.num);
   document.getElementById('sheetNum').textContent = p.num;
   document.getElementById('sheetTitleText').textContent = 'Позиция №' + p.num;
   document.getElementById('posText').value = p.text || '';
@@ -772,6 +811,7 @@ function showSheet(){
 }
 function closeSheet(){
   if(editingId===null){ posCounter -= 1; } // creating cancelled — number not consumed
+  saveViewState(null);
   document.getElementById('backdrop').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
   stopMicVisual();
@@ -944,6 +984,7 @@ function confirmDelete(){
   if(id==null) return;
   positions = positions.filter(x=>x.id!==id);
   if(fromSheet){
+    saveViewState(null);
     document.getElementById('backdrop').classList.remove('open');
     document.getElementById('sheet').classList.remove('open');
   }
@@ -1001,14 +1042,19 @@ function render(){
 async function init(){
   debugLog('init() старт');
   document.getElementById('versionBadge').textContent = APP_VERSION;
-  // Заглушка "030" по умолчанию не содержит настоящих данных — синхронизировать её незачем.
-  // Реальная загрузка данных пачки происходит в switchToPack(), когда пользователь
-  // явно выбирает пачку. Отдельный сетевой запрос здесь раньше мог "гоняться наперегонки"
-  // с ручным переключением пачки и перезаписывать экран устаревшими данными.
-  await mergePendingIntoCurrentPack();
-  render();
-  renderPackPhotos();
   await updatePendingBadge();
+
+  const saved = loadViewState();
+  const startPack = (saved && saved.pack) ? saved.pack : currentPackNum;
+  debugLog(`init(): восстанавливаю состояние — пачка=${startPack}, позиция=${saved && saved.posNum}`);
+
+  await switchToPack(startPack);
+
+  if(saved && saved.posNum){
+    const p = positions.find(x => x.num === saved.posNum);
+    if(p) openSheetEdit(p.id);
+  }
+
   retryPendingSaves();
 }
 init();
