@@ -315,7 +315,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v30';
+const APP_VERSION = 'v31';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -690,7 +690,7 @@ async function switchToPack(rawNum){
 
 async function openPackList(){
   const container = document.getElementById('packListItems');
-  container.innerHTML = '<div style="padding:16px 4px;color:var(--ink-soft);font-size:13px;">Загружаю список пачек…</div>';
+  container.innerHTML = '<div class="loading-hint" style="display:flex;"><span class="spinner"></span><span style="font-weight:600;">загружаю список пачек…</span></div>';
   document.getElementById('packListBackdrop').classList.add('open');
   document.getElementById('packListSheet').classList.add('open');
 
