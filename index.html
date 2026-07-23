@@ -129,12 +129,12 @@
   .sheet-title .pos-num{width:38px; height:38px; font-size:15px;}
   .sheet-title h3{margin:0; font-size:15px; color:var(--ink-soft); font-weight:600; flex:1;}
 
-  .mic-btn{width:40px; height:40px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none;}
-  .mic-btn svg{width:18px; height:18px;}
+  .mic-btn{width:36px; height:36px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; position:absolute; right:8px; bottom:8px; z-index:2; box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .mic-btn svg{width:16px; height:16px;}
   .mic-btn.recording{background:var(--danger); animation:pulse 1.1s infinite;}
   .mic-btn.processing{background:var(--accent-dark); opacity:.7;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
-  .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 14px 2px; text-align:right;}
+  .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 8px 2px; text-align:right;}
 
   .qty-row{display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
   .qty-label{font-size:13px; color:var(--ink-soft); font-weight:600;}
@@ -144,7 +144,9 @@
   .qty-stepper input{width:46px; height:38px; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line); text-align:center; font-size:15px; font-weight:700; font-family:var(--mono); color:var(--ink); background:var(--paper);}
   .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
-  .sheet textarea{width:100%; min-height:96px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
+  .textarea-wrap{position:relative;}
+  #micWave{position:absolute; left:8px; right:52px; bottom:9px; height:34px; z-index:1; display:none; pointer-events:none;}
+  .sheet textarea{width:100%; min-height:96px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 50px 46px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
   .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
 
   .photo-row{display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap;}
@@ -242,14 +244,17 @@
     <div class="sheet-title">
       <div class="pos-num" id="sheetNum">—</div>
       <h3 id="sheetTitleText">Новая позиция</h3>
+    </div>
+    <div class="mic-hint" id="micHint">нажми микрофон и скажи, что кладёшь</div>
+
+    <div class="textarea-wrap">
+      <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
+      <canvas id="micWave" width="300" height="36" style="display:none;"></canvas>
       <button class="mic-btn" id="micBtn" onclick="toggleMic()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
       </button>
     </div>
-    <div class="mic-hint" id="micHint">нажми микрофон и скажи, что кладёшь</div>
-    <canvas id="micWave" width="600" height="40" style="display:none; width:100%; height:32px; margin:-6px 0 14px;"></canvas>
 
-    <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
     <div class="suggest-box" id="suggestBox"></div>
 
     <div class="qty-row">
@@ -316,7 +321,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v34';
+const APP_VERSION = 'v35';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -329,6 +334,7 @@ let micStream = null;
 let waveAudioCtx = null;
 let waveAnalyser = null;
 let waveAnimFrame = null;
+let sheetAudioDataUrl = null; // база64 последней записанной (и распознанной) аудиозаписи текущей позиции — уходит в Таблицу при сохранении
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
@@ -519,7 +525,8 @@ async function sendPositionToServer(packNum, posObj){
     posNum: posObj.num,
     qty: posObj.qty,
     text: posObj.text,
-    photos: posObj.photos || []
+    photos: posObj.photos || [],
+    audio: posObj.audio || ''
   };
   const result = await sendToServer(payload);
   if(result.ok){
@@ -795,6 +802,7 @@ function openSheetNew(){
   document.getElementById('saveBtn').textContent = 'Закрыть позицию';
   document.getElementById('deleteBtn').style.display = 'none';
   sheetPhotos = [];
+  sheetAudioDataUrl = null;
   renderSheetPhotos();
   hideSuggestions();
   showSheet();
@@ -812,6 +820,7 @@ function openSheetEdit(id){
   document.getElementById('saveBtn').textContent = 'Сохранить';
   document.getElementById('deleteBtn').style.display = 'block';
   sheetPhotos = [...p.photos];
+  sheetAudioDataUrl = null;
   renderSheetPhotos();
   hideSuggestions();
   showSheet();
@@ -836,36 +845,44 @@ function changeQty(delta){
   inp.value = v;
 }
 
-// Рисует живую волну по реальному сигналу с микрофона, пока идёт запись.
+// Рисует "эквалайзер" (частотные столбики) по реальному звуку с микрофона, пока идёт запись —
+// не сырая форма сигнала (она у голоса рваная и нервно дёргается), а сглаженная громкость по полосам частот.
 function startWave(stream){
   try{
     waveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = waveAudioCtx.createMediaStreamSource(stream);
     waveAnalyser = waveAudioCtx.createAnalyser();
-    waveAnalyser.fftSize = 256;
+    waveAnalyser.fftSize = 128;
+    waveAnalyser.smoothingTimeConstant = 0.75; // сглаживание между кадрами — без него столбики дёргаются слишком резко
     source.connect(waveAnalyser);
 
     const canvas = document.getElementById('micWave');
     canvas.style.display = 'block';
     const ctx = canvas.getContext('2d');
     const dataArray = new Uint8Array(waveAnalyser.frequencyBinCount);
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#FF6B1A';
+
+    const barCount = 28;
+    const gap = 2;
+    const barWidth = (canvas.width / barCount) - gap;
 
     const draw = () => {
       waveAnimFrame = requestAnimationFrame(draw);
-      waveAnalyser.getByteTimeDomainData(dataArray);
+      waveAnalyser.getByteFrequencyData(dataArray);
       const w = canvas.width, h = canvas.height;
       ctx.clearRect(0, 0, w, h);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--danger') || '#C43D3D';
-      ctx.beginPath();
-      const step = w / dataArray.length;
-      for(let i=0; i<dataArray.length; i++){
-        const v = dataArray[i] / 128.0; // 0..2, тишина ≈ 1
-        const y = (v * h) / 2;
-        const x = i * step;
-        if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      ctx.fillStyle = accentColor;
+      let x = 0;
+      // голос концентрируется в нижних частотах — берём примерно нижние 55% полос, чтобы столбики справа не были всегда пустыми
+      const usableBins = Math.floor(dataArray.length * 0.55);
+      for(let i=0; i<barCount; i++){
+        const binIndex = Math.floor((i / barCount) * usableBins);
+        const level = dataArray[binIndex] / 255; // 0..1
+        const barH = Math.max(3, level * h);
+        const y = (h - barH) / 2;
+        ctx.fillRect(x, y, barWidth, barH);
+        x += barWidth + gap;
       }
-      ctx.stroke();
     };
     draw();
   } catch(e){
@@ -936,6 +953,7 @@ async function toggleMic(){
 
     const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
     const dataUrl = await fileToDataUrl(blob);
+    sheetAudioDataUrl = dataUrl; // сама запись сохранится в Таблицу при сохранении позиции, даже если распознавание ниже не удастся
 
     const result = await sendToServer({ type:'transcribe', audio: dataUrl });
 
@@ -1007,11 +1025,11 @@ function saveSheet(){
   const num = parseInt(document.getElementById('sheetNum').textContent);
   let savedObj;
   if(editingId===null){
-    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos] };
+    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], audio: sheetAudioDataUrl };
     positions.push(savedObj);
   } else {
     const p = positions.find(x=>x.id===editingId);
-    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; savedObj = p; }
+    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.audio = sheetAudioDataUrl; savedObj = p; }
   }
   document.getElementById('backdrop').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
