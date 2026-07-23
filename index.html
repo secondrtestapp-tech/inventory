@@ -148,7 +148,7 @@
   .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
   .textarea-wrap{position:relative;}
-  #micWave{position:absolute; right:38px; width:130px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
+  #micWave{position:absolute; right:46px; width:130px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
   .sheet textarea{width:100%; min-height:180px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 38px 70px 12px; font-family:var(--sans); font-size:18px; color:var(--ink); resize:none; background:var(--surface);}
   .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
 
@@ -324,7 +324,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v44';
+const APP_VERSION = 'v45';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -337,7 +337,7 @@ let micStream = null;
 let waveAudioCtx = null;
 let waveAnalyser = null;
 let waveAnimFrame = null;
-let hadSound = false; // был ли за время записи хоть один момент громче фонового шума
+let speechFrames = 0; // сколько кадров записи звук был уверенно громче фонового шума (не единичный всплеск)
 let sheetAudioDataUrl = null; // база64 последней записанной (и распознанной) аудиозаписи текущей позиции — уходит в Таблицу при сохранении
 const locallyPhotographedPositions = new Set(); // ключи "пачка:номер_позиции" — сфотографированы в этой сессии, сервер их фото не подменяет
 const locallyPhotographedPacks = new Set(); // номера пачек — то же самое для общих фото пачки
@@ -888,8 +888,8 @@ function startWave(stream){
     const freqData = new Uint8Array(waveAnalyser.frequencyBinCount);
     const barColor = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim() || '#5B5850';
 
-    const barWidth = 2;
-    const gap = 1.5;
+    const barWidth = 1.5;
+    const gap = 2.2;
     const slot = barWidth + gap;
     const capacity = Math.ceil(canvas.width / slot);
     const history = new Array(capacity).fill(0); // копим последние замеры громкости — это и есть "лента"
@@ -911,8 +911,13 @@ function startWave(stream){
       let level = 0;
       if(rawLevel > noiseFloor){
         level = Math.min(1, rawLevel - noiseFloor);
-        hadSound = true;
       }
+
+      // Отдельный, более строгий порог именно для решения "отправлять ли на распознавание".
+      // Единичный громкий кадр (щелчок, вдох, шорох по микрофону) не считается — нужно, чтобы
+      // звук держался ощутимое число кадров подряд-ish, это гораздо больше похоже на речь.
+      const speechThreshold = 0.16;
+      if(rawLevel > speechThreshold) speechFrames++;
 
       frameCount++;
       if(frameCount % 2 === 0){ // сдвигаем ленту раз в два кадра — вдвое медленнее, чем раньше (каждый кадр)
@@ -992,7 +997,9 @@ async function toggleMic(){
     if(!audioChunks.length){
       return;
     }
-    if(!hadSound){
+    // ~10 кадров при 60 кадрах/сек — это примерно треть секунды уверенно громкого звука.
+    // Единичный щелчок/вдох столько не наберёт, а короткое слово — вполне может.
+    if(speechFrames < 10){
       showToast('Ничего не расслышал — тишина, попробуй ещё раз');
       return;
     }
@@ -1023,7 +1030,7 @@ async function toggleMic(){
 
   mediaRecorder.start();
   recording = true;
-  hadSound = false;
+  speechFrames = 0;
   btn.classList.add('recording');
   startWave(stream);
 }
