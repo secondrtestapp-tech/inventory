@@ -261,7 +261,7 @@
     </div>
 
     <div class="photo-row" id="sheetPhotoRow">
-      <button class="photo-attach" onclick="document.getElementById('posPhotoInput').click()">
+      <button class="photo-attach" id="sheetPhotoAttachBtn" onclick="document.getElementById('posPhotoInput').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       </button>
       <input type="file" id="posPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addSheetPhoto(event)">
@@ -315,7 +315,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v31';
+const APP_VERSION = 'v33';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -766,7 +766,6 @@ async function addPackPhoto(e){
 }
 function renderPackPhotos(){
   const container = document.getElementById('packPhotos');
-  const addBtn = document.getElementById('addPackPhotoBtn');
   container.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
   [...packPhotosArr].reverse().forEach((url)=>{
     const wrap = document.createElement('div');
@@ -777,7 +776,7 @@ function renderPackPhotos(){
     del.className='thumb-del'; del.textContent='×';
     del.onclick=(ev)=>{ev.stopPropagation(); const i=packPhotosArr.indexOf(url); if(i>-1) packPhotosArr.splice(i,1); renderPackPhotos();};
     wrap.appendChild(img); wrap.appendChild(del);
-    container.insertBefore(wrap, addBtn);
+    container.appendChild(wrap); // кнопка камеры зашита первой в разметке и никогда не двигается — новые фото просто дописываются после неё
   });
 }
 
@@ -943,7 +942,7 @@ function renderSheetPhotos(){
     const wrap = document.createElement('div');
     wrap.className = 'thumb-wrap';
     wrap.innerHTML = `<img class="sheet-photo-thumb" src="${driveImgUrl(url)}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="event.stopPropagation(); removeSheetPhoto(${idx})">×</button>`;
-    row.appendChild(wrap);
+    row.appendChild(wrap); // кнопка камеры зашита первой в разметке и никогда не двигается
   });
 }
 
