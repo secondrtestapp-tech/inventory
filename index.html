@@ -128,6 +128,9 @@
   .sheet-title{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .sheet-title .pos-num{width:30px; height:30px; font-size:13px;}
   .sheet-title h3{margin:0; font-size:15px; color:var(--ink-soft); font-weight:600; flex:1;}
+  .qr-block{display:flex; align-items:center; gap:10px; margin-bottom:10px; padding:8px; background:var(--surface); border-radius:10px;}
+  .qr-block img{width:64px; height:64px; border-radius:6px; flex:none;}
+  .qr-block span{font-size:12px; color:var(--ink-soft); line-height:1.35;}
 
   .mic-btn{width:28px; height:28px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; position:absolute; right:10px; bottom:10px; z-index:2; box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .mic-btn svg{width:13px; height:13px;}
@@ -249,6 +252,11 @@
       <h3 id="sheetTitleText">Новая позиция</h3>
     </div>
 
+    <div class="qr-block" id="qrBlock" style="display:none;">
+      <img id="qrImg" src="" alt="QR-код позиции">
+      <span>отсканируй с iPhone, чтобы открыть эту позицию там</span>
+    </div>
+
     <div class="textarea-wrap">
       <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
       <canvas id="micWave" width="130" height="56" style="display:none;"></canvas>
@@ -324,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v46';
+const APP_VERSION = 'v47';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -633,6 +641,41 @@ async function syncFromServer(num){
   }
 }
 
+let backgroundSyncing = false; // защита от повторного захода, если предыдущий запрос ещё не завершился
+
+// Раз в 10-15 секунд тихо подтягивает свежие данные текущей пачки с сервера — сценарий
+// "один человек попеременно работает на iPad и iPhone в одной и той же пачке". Открытая
+// карточка позиции (её текстовое поле) при этом не трогается вообще: то, что печатается
+// в поле "название", читается из positions[] только в момент открытия карточки, а не
+// обновляется на лету — так что фоновое обновление списка физически не может затереть
+// несохранённый текст.
+async function backgroundSync(){
+  if(backgroundSyncing || recording || syncingPack) return; // не мешаем себе, если уже что-то синхронизируется или идёт запись голоса
+  if(!currentPackNum) return;
+  backgroundSyncing = true;
+  try{
+    const packAtStart = currentPackNum;
+    const fresh = await syncFromServer(packAtStart);
+    if(!fresh) return; // сеть подвела — тихо пробуем в следующий раз
+    if(packAtStart !== currentPackNum) return; // пока шёл запрос, человек уже переключился на другую пачку
+
+    positions = fresh.positions.map(fp => {
+      if(locallyPhotographedPositions.has(currentPackNum + ':' + fp.num)){
+        const existing = positions.find(p => p.num === fp.num);
+        if(existing) return { ...fp, photos: existing.photos };
+      }
+      return fp;
+    });
+    packPhotosArr = locallyPhotographedPacks.has(currentPackNum) ? packPhotosArr : fresh.packPhotos;
+    posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
+    await mergePendingIntoCurrentPack();
+    renderPackPhotos();
+    render();
+  } finally {
+    backgroundSyncing = false;
+  }
+}
+
 async function switchToPack(rawNum){
   const num = padPack(rawNum);
   debugLog(`switchToPack(${rawNum}) → ${num}, cache=${packs[num]?('есть,'+packs[num].positions.length+'поз'):'нет'}`);
@@ -774,6 +817,24 @@ function fileToDataUrl(file){
 // не отрисовывается (браузер просто не видит там изображение). Для показа внутри
 // приложения нужен отдельный "прямой" адрес именно байтов картинки. Локальные data:-фото
 // (только что снятые, ещё не отправленные на сервер) эта функция не трогает — вернёт как есть.
+// Телефон или нет — по физическому размеру экрана (короткая сторона), не по марке/ОС.
+// screen.width/height — реальные размеры устройства, в отличие от innerWidth не скачут
+// от масштаба страницы или ширины окна на компьютере.
+function isPhoneDevice(){
+  const shortSide = Math.min(window.screen.width, window.screen.height);
+  return shortSide < 600;
+}
+
+// На iPad/компьютере кнопка "фото" не должна принудительно открывать камеру —
+// только обычный выбор файла (в том числе из галереи). На телефонах остаётся как есть.
+function applyCameraRestriction(){
+  if(isPhoneDevice()) return;
+  const packInput = document.getElementById('packPhotoInput');
+  const sheetInput = document.getElementById('posPhotoInput');
+  if(packInput) packInput.removeAttribute('capture');
+  if(sheetInput) sheetInput.removeAttribute('capture');
+}
+
 function driveImgUrl(url){
   if(!url) return url;
   if(url.startsWith('data:')) return url; // локальное, ещё не загруженное фото — это не ссылка, трогать нечего
@@ -821,6 +882,7 @@ function openSheetNew(){
   sheetPhotos = [];
   sheetAudioDataUrl = null;
   renderSheetPhotos();
+  document.getElementById('qrBlock').style.display = 'none'; // у новой, ещё не сохранённой позиции стабильного номера для ссылки нет
   hideSuggestions();
   showSheet();
 }
@@ -839,8 +901,23 @@ function openSheetEdit(id){
   sheetPhotos = [...p.photos];
   sheetAudioDataUrl = null;
   renderSheetPhotos();
+  updateQrBlock(p.num);
   hideSuggestions();
   showSheet();
+}
+
+// QR-код нужен только на планшете/компьютере — сценарий "открыл позицию на iPad, отсканировал с iPhone".
+// На самом телефоне сканировать нечего, поэтому там блок всегда скрыт.
+function updateQrBlock(posNum){
+  const block = document.getElementById('qrBlock');
+  if(isPhoneDevice()){
+    block.style.display = 'none';
+    return;
+  }
+  const base = window.location.origin + window.location.pathname;
+  const target = base + '?пачка=' + encodeURIComponent(currentPackNum) + '&позиция=' + encodeURIComponent(posNum);
+  document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(target);
+  block.style.display = 'flex';
 }
 
 function showSheet(){
@@ -1189,20 +1266,32 @@ function render(){
 async function init(){
   debugLog('init() старт');
   document.getElementById('versionBadge').textContent = APP_VERSION;
+  applyCameraRestriction();
   await updatePendingBadge();
 
+  // Переход по QR-коду ("…/inventory/?пачка=030&позиция=5") — приоритетнее обычного
+  // восстановления последнего состояния: если отсканировали QR, значит явно хотели
+  // попасть именно сюда, а не туда, где были в прошлый раз на этом устройстве.
+  const urlParams = new URLSearchParams(window.location.search);
+  const qrPack = urlParams.get('пачка');
+  const qrPos = urlParams.get('позиция');
+
   const saved = loadViewState();
-  const startPack = (saved && saved.pack) ? saved.pack : currentPackNum;
-  debugLog(`init(): восстанавливаю состояние — пачка=${startPack}, позиция=${saved && saved.posNum}`);
+  const startPack = qrPack ? padPack(qrPack) : ((saved && saved.pack) ? saved.pack : currentPackNum);
+  debugLog(`init(): восстанавливаю состояние — пачка=${startPack}, позиция=${qrPos || (saved && saved.posNum)}`);
 
   await switchToPack(startPack);
 
-  if(saved && saved.posNum){
+  if(qrPack && qrPos){
+    const p = positions.find(x => x.num === Number(qrPos));
+    if(p) openSheetEdit(p.id);
+  } else if(saved && saved.posNum){
     const p = positions.find(x => x.num === saved.posNum);
     if(p) openSheetEdit(p.id);
   }
 
   retryPendingSaves();
+  setInterval(backgroundSync, 12000);
 }
 init();
 </script>
