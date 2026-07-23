@@ -192,7 +192,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v15</div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v16</div>
 <div id="app">
 
   <div class="topbar">
@@ -319,6 +319,7 @@ let recording = false;
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
+let packRequestId = 0; // счётчик заходов в пачку — для отбрасывания устаревших ответов сети
 
 // показывает номер пачки на экране в три знака (030, 001, 999) —
 // саму пачку для сверки с сервером (currentPackNum) это не трогает
@@ -583,6 +584,7 @@ async function switchToPack(rawNum){
     posCounter: posCounter
   };
   currentPackNum = num;
+  const myRequestId = ++packRequestId; // метка именно этого захода в пачку
   document.getElementById('packNum').textContent = num;
   sortAscending = false;
   document.getElementById('sortToggle').textContent = 'сначала новые';
@@ -605,6 +607,7 @@ async function switchToPack(rawNum){
 
   // потом подтягиваем настоящее состояние из Google, если есть связь
   const fresh = await syncFromServer(num);
+  if(myRequestId !== packRequestId) return; // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
   if(fresh){
     positions = fresh.positions;
     packPhotosArr = fresh.packPhotos;
