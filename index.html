@@ -241,7 +241,7 @@
   <div class="fab"><button onclick="openSheetNew()">+</button></div>
 
   <div class="sheet-backdrop" id="backdrop" onclick="closeSheet()"></div>
-  <div class="sheet" id="sheet">
+  <div class="sheet" id="sheet" onclick="blurTextareaIfTappedOutside(event)">
     <div class="sheet-handle"></div>
     <div class="sheet-title">
       <div class="pos-num" id="sheetNum">—</div>
@@ -323,7 +323,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v40';
+const APP_VERSION = 'v41';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -844,6 +844,16 @@ function showSheet(){
   document.getElementById('backdrop').classList.add('open');
   document.getElementById('sheet').classList.add('open');
 }
+// Тап куда угодно внутри открытой карточки, кроме самого поля названия — убирает курсор
+// и клавиатуру из этого поля. Раньше поле держало фокус (и оранжевую рамку) до бесконечности,
+// пока не тапнешь конкретно в другое поле ввода.
+function blurTextareaIfTappedOutside(event){
+  const ta = document.getElementById('posText');
+  if(document.activeElement === ta && event.target !== ta){
+    ta.blur();
+  }
+}
+
 function closeSheet(){
   if(editingId===null){ posCounter -= 1; } // creating cancelled — number not consumed
   saveViewState(null);
