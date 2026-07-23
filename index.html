@@ -332,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v52';
+const APP_VERSION = 'v53';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -507,17 +507,22 @@ async function retryPendingSaves(){
   if(!items.length) return;
   debugLog(`retryPendingSaves: в очереди ${items.length} шт: ` + items.map(it=>`[пачка=${it.payload.pack},поз=${it.payload.posNum},тип=${it.payload.type}]`).join(' '));
   let sentAny = false;
+  let lastError = null;
   for(const item of items){
     const result = await sendToServer(item.payload);
     debugLog(`  отправка пачка=${item.payload.pack} поз=${item.payload.posNum}: ${result.ok ? 'OK' : 'ошибка: '+result.error}`);
     if(result.ok){
       await dbDeletePending(item.id);
       sentAny = true;
+    } else {
+      lastError = { pack: item.payload.pack, posNum: item.payload.posNum, error: result.error };
     }
   }
   await updatePendingBadge();
   if(pendingCount === 0 && sentAny){
     showToast('Все отложенные данные отправлены в Google');
+  } else if(lastError){
+    showToast(`Не отправлено (пачка ${lastError.pack}, поз. ${lastError.posNum}): ${lastError.error}`);
   }
 }
 
