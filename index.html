@@ -114,7 +114,7 @@
     margin-right:-6px;
   }
   body.wide .position-card.active::after{
-    content:''; position:absolute; right:-10px; top:50%; transform:translateY(-50%);
+    content:''; position:absolute; right:-28px; top:50%; transform:translateY(-50%);
     width:0; height:0; border-top:18px solid transparent; border-bottom:18px solid transparent;
     border-left:21px solid var(--steel);
   }
@@ -363,11 +363,12 @@
 </div>
 
 <script>
-const APP_VERSION = 'v62';
+const APP_VERSION = 'v63';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
 let editingId = null;
+let sheetOriginalSnapshot = null; // текст/количество/фото/аудио на момент открытия карточки — с этим сверяем при автосохранении
 let sheetPhotos = [];
 let recording = false;
 let mediaRecorder = null;
@@ -999,6 +1000,7 @@ function openSheetNew(){
     autoSaveIfSheetOpen();
   }
   editingId = null;
+  sheetOriginalSnapshot = null;
   saveViewState(null);
   posCounter += 1;
   document.getElementById('sheetNum').textContent = posCounter;
@@ -1033,6 +1035,7 @@ function openSheetEdit(id){
   document.getElementById('deleteBtn').style.display = 'block';
   sheetPhotos = [...p.photos];
   sheetAudioDataUrl = null;
+  sheetOriginalSnapshot = { text: p.text || '', qty: p.qty || 1, photos: JSON.stringify(p.photos || []), audio: null };
   renderSheetPhotos();
   updateQrBlock(p.num);
   hideSuggestions();
@@ -1316,6 +1319,18 @@ function persistCurrentSheetData(){
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
   const num = parseInt(document.getElementById('sheetNum').textContent);
   if(editingId === null && !text && !sheetPhotos.length) return null;
+
+  // Ничего реально не поменялось с момента открытия — сравниваем с тем, что было
+  // загружено в карточку изначально. Раньше при переключении между позициями без
+  // единой правки всё равно уходил настоящий запрос на сервер — отсюда лишнее
+  // дёргание списка и тост "Сохранено в Google" на пустом месте.
+  if(editingId !== null && sheetOriginalSnapshot){
+    const unchanged = text === sheetOriginalSnapshot.text &&
+      qty === sheetOriginalSnapshot.qty &&
+      JSON.stringify(sheetPhotos) === sheetOriginalSnapshot.photos &&
+      sheetAudioDataUrl === sheetOriginalSnapshot.audio;
+    if(unchanged) return null;
+  }
 
   if(sheetPhotos.some(url => url.startsWith('data:'))){
     locallyPhotographedPositions.add(currentPackNum + ':' + num);
