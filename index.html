@@ -27,11 +27,12 @@
      то же самое определение "не телефон", что уже используется для камеры и QR.
      На телефоне ничего из этого не действует вообще. */
   body.wide{justify-content:flex-start;}
-  body.wide #app{max-width:640px; margin-left:max(16px, calc((100vw - 640px - 420px) / 2));}
+  body.wide #app{max-width:380px; margin-left:20px;}
+  body.wide .fab{position:absolute; left:auto; right:0; bottom:0; max-width:none; width:auto; transform:none;}
   body.wide .sheet-backdrop{display:none;} /* список остаётся видимым и кликабельным рядом с открытой панелью, затемнение не нужно */
   #sheet.wide-panel{
     left:auto; right:0; bottom:0; top:0; transform:translateX(100%);
-    width:420px; max-width:40vw; min-width:340px;
+    width:640px; max-width:60vw; min-width:420px;
     border-radius:0; height:100vh; max-height:100vh;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);
     padding:20px 22px calc(20px + env(safe-area-inset-bottom));
@@ -345,7 +346,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v56';
+const APP_VERSION = 'v57';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -741,6 +742,16 @@ async function backgroundSync(){
 
 async function switchToPack(rawNum){
   const num = padPack(rawNum);
+  // На широкой раскладке (iPad) карточка позиции не перекрывает список — можно
+  // переключить пачку, пока карточка открыта. Раньше она просто оставалась висеть
+  // от старой пачки; теперь сначала тихо сохраняем то, что в ней есть, и закрываем.
+  const sheetEl = document.getElementById('sheet');
+  if(sheetEl.classList.contains('open')){
+    autoSaveIfSheetOpen();
+    document.getElementById('backdrop').classList.remove('open');
+    sheetEl.classList.remove('open');
+    stopMicVisual();
+  }
   debugLog(`switchToPack(${rawNum}) → ${num}, cache=${packs[num]?('есть,'+packs[num].positions.length+'поз'):'нет'}`);
   // сохраняем локальный снимок текущей пачки — для мгновенного переключения офлайн
   packs[currentPackNum] = {
@@ -945,6 +956,10 @@ function renderPackPhotos(){
 }
 
 function openSheetNew(){
+  const sheetEl = document.getElementById('sheet');
+  if(sheetEl.classList.contains('open')){
+    autoSaveIfSheetOpen();
+  }
   editingId = null;
   saveViewState(null);
   posCounter += 1;
@@ -965,6 +980,10 @@ function openSheetNew(){
 function openSheetEdit(id){
   const p = positions.find(x=>x.id===id);
   if(!p) return;
+  const sheetEl = document.getElementById('sheet');
+  if(sheetEl.classList.contains('open') && editingId !== id){
+    autoSaveIfSheetOpen(); // переключаемся на другую позицию, не закрывая карточку явно — сохраняем прежнюю тихо
+  }
   editingId = id;
   saveViewState(p.num);
   document.getElementById('sheetNum').textContent = p.num;
@@ -1230,10 +1249,18 @@ function renderSheetPhotos(){
   });
 }
 
-function saveSheet(){
+// Записывает то, что сейчас в полях карточки, в общий список positions[] и возвращает
+// сохранённый объект — используется и кнопкой "Сохранить", и автосохранением при
+// переключении на другую позицию/пачку без явного нажатия "Сохранить" (актуально
+// для широкой раскладки iPad, где карточка не перекрывает список, и можно тапнуть
+// в другое место, пока в карточке остались непросмотренные изменения).
+// Возвращает null, если сохранять нечего — пустой, ещё не тронутый черновик новой позиции.
+function persistCurrentSheetData(){
   const text = document.getElementById('posText').value.trim();
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
   const num = parseInt(document.getElementById('sheetNum').textContent);
+  if(editingId === null && !text && !sheetPhotos.length) return null;
+
   if(sheetPhotos.some(url => url.startsWith('data:'))){
     locallyPhotographedPositions.add(currentPackNum + ':' + num);
   }
@@ -1249,6 +1276,23 @@ function saveSheet(){
     const p = positions.find(x=>x.num===num);
     if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.audio = sheetAudioDataUrl; savedObj = p; }
   }
+  return savedObj;
+}
+
+// Если карточка сейчас открыта — тихо сохраняет её содержимое, не трогая саму видимость
+// панели (её дальше либо закроют, либо тут же заполнят новыми данными другой позиции).
+function autoSaveIfSheetOpen(){
+  const sheetEl = document.getElementById('sheet');
+  if(!sheetEl || !sheetEl.classList.contains('open')) return;
+  const savedObj = persistCurrentSheetData();
+  if(savedObj){
+    render();
+    sendPositionToServer(currentPackNum, savedObj);
+  }
+}
+
+function saveSheet(){
+  const savedObj = persistCurrentSheetData();
   document.getElementById('backdrop').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
   hideSuggestions();
