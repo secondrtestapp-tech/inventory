@@ -192,7 +192,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v14</div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v15</div>
 <div id="app">
 
   <div class="topbar">
@@ -319,6 +319,13 @@ let recording = false;
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
+
+// показывает номер пачки на экране в три знака (030, 001, 999) —
+// саму пачку для сверки с сервером (currentPackNum) это не трогает
+function padPack(n){
+  const s = String(n);
+  return /^\d+$/.test(s) ? s.padStart(3,'0') : s;
+}
 let packPhotosArr = [];
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyph9mWX7eqImQWwJWdaQVyFCZQ4VkPS5wUO7kCfTFTE6NIlmXsRqgdxL01Mu49hI2a4g/exec';
@@ -533,7 +540,7 @@ function closeNewPackModal(){
   document.getElementById('newPackOverlay').classList.remove('open');
 }
 function confirmNewPack(){
-  const v = document.getElementById('newPackNumInput').value.trim();
+  let v = document.getElementById('newPackNumInput').value.trim();
   if(!v) return;
   document.getElementById('newPackOverlay').classList.remove('open');
   switchToPack(v);
@@ -567,7 +574,8 @@ async function syncFromServer(num){
   }
 }
 
-async function switchToPack(num){
+async function switchToPack(rawNum){
+  const num = padPack(rawNum);
   // сохраняем локальный снимок текущей пачки — для мгновенного переключения офлайн
   packs[currentPackNum] = {
     photos: [...packPhotosArr],
@@ -871,20 +879,15 @@ function render(){
 }
 
 async function init(){
+  // Заглушка "030" по умолчанию не содержит настоящих данных — синхронизировать её незачем.
+  // Реальная загрузка данных пачки происходит в switchToPack(), когда пользователь
+  // явно выбирает пачку. Отдельный сетевой запрос здесь раньше мог "гоняться наперегонки"
+  // с ручным переключением пачки и перезаписывать экран устаревшими данными.
   await mergePendingIntoCurrentPack();
   render();
   renderPackPhotos();
   await updatePendingBadge();
   retryPendingSaves();
-  const fresh = await syncFromServer(currentPackNum);
-  if(fresh){
-    positions = fresh.positions;
-    packPhotosArr = fresh.packPhotos;
-    posCounter = Math.max(0, ...positions.map(p=>p.num));
-    await mergePendingIntoCurrentPack();
-    render();
-    renderPackPhotos();
-  }
 }
 init();
 </script>
