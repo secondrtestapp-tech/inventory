@@ -101,9 +101,22 @@
   .position-card{
     background:var(--paper); border-radius:12px; border:1px solid var(--line);
     display:flex; align-items:center; gap:12px; padding:14px 12px 14px 14px;
-    animation:pop .25s ease;
+    animation:pop .25s ease; position:relative;
   }
   @keyframes pop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+  /* На iPad, когда список и открытая карточка видны одновременно — активная строка
+     списка "приподнимается" тенью и получает маленькую стрелочку с правого края,
+     указывающую в сторону открытой панели. На iPhone список и карточка никогда не
+     видны вместе, поэтому там это не нужно и не подключается. */
+  body.wide .position-card.active{
+    box-shadow:0 6px 18px rgba(0,0,0,.14);
+    padding:17px 14px 17px 16px;
+  }
+  body.wide .position-card.active::after{
+    content:''; position:absolute; right:-9px; top:50%; transform:translateY(-50%);
+    width:0; height:0; border-top:8px solid transparent; border-bottom:8px solid transparent;
+    border-left:9px solid var(--ink);
+  }
   .pos-num{
     font-family:var(--mono); font-weight:700; font-size:14px; color:var(--paper); background:var(--steel);
     width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:none;
@@ -349,7 +362,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v59';
+const APP_VERSION = 'v60';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -979,6 +992,7 @@ function openSheetNew(){
   document.getElementById('qrBlock').style.display = 'none'; // у новой, ещё не сохранённой позиции стабильного номера для ссылки нет
   hideSuggestions();
   showSheet();
+  render();
 }
 
 function openSheetEdit(id){
@@ -1002,6 +1016,7 @@ function openSheetEdit(id){
   updateQrBlock(p.num);
   hideSuggestions();
   showSheet();
+  render();
 }
 
 // QR-код нужен только на планшете/компьютере — сценарий "открыл позицию на iPad, отсканировал с iPhone".
@@ -1059,6 +1074,7 @@ function closeSheet(){
   document.getElementById('backdrop').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
   stopMicVisual();
+  render();
 }
 
 function changeQty(delta){
@@ -1389,10 +1405,11 @@ function render(){
     hint.style.display = 'block';
     loadingHint.style.display = 'none';
   }
+  const sheetIsOpen = document.getElementById('sheet').classList.contains('open');
   positions.slice().sort((a,b)=> sortAscending ? a.num-b.num : b.num-a.num).forEach(p=>{
     try{
       const card = document.createElement('div');
-      card.className='position-card';
+      card.className = 'position-card' + (sheetIsOpen && editingId === p.id ? ' active' : '');
       card.onclick = ()=>openSheetEdit(p.id);
       const maxShown = 3;
       const photosArr = Array.isArray(p.photos) ? p.photos : [];
