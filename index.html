@@ -324,7 +324,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v45';
+const APP_VERSION = 'v46';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -776,6 +776,7 @@ function fileToDataUrl(file){
 // (только что снятые, ещё не отправленные на сервер) эта функция не трогает — вернёт как есть.
 function driveImgUrl(url){
   if(!url) return url;
+  if(url.startsWith('data:')) return url; // локальное, ещё не загруженное фото — это не ссылка, трогать нечего
   const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if(!m) return url;
   return 'https://lh3.googleusercontent.com/d/' + m[1] + '=w1000';
