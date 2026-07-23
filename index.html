@@ -332,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v50';
+const APP_VERSION = 'v51';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -663,6 +663,7 @@ async function backgroundSync(){
     const fresh = await syncFromServer(packAtStart);
     if(!fresh) return; // сеть подвела — тихо пробуем в следующий раз
     if(packAtStart !== currentPackNum) return; // пока шёл запрос, человек уже переключился на другую пачку
+    if(savingPosition) return; // пока шёл запрос, успела открыться карточка позиции — не трогаем
 
     positions = fresh.positions.map(fp => {
       if(locallyPhotographedPositions.has(currentPackNum + ':' + fp.num)){
@@ -1172,7 +1173,11 @@ function saveSheet(){
     savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], audio: sheetAudioDataUrl };
     positions.push(savedObj);
   } else {
-    const p = positions.find(x=>x.id===editingId);
+    // По видимому номеру позиции, а не по служебному id — id пересоздаётся заново при
+    // каждой синхронизации с сервером (даже фоновой), и если она случилась, пока карточка
+    // была открыта, старый id уже никого не находит, и сохранение молча проваливается.
+    // Номер позиции ("Позиция №1") — единственное, что в любом случае остаётся неизменным.
+    const p = positions.find(x=>x.num===num);
     if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.audio = sheetAudioDataUrl; savedObj = p; }
   }
   document.getElementById('backdrop').classList.remove('open');
@@ -1184,6 +1189,7 @@ function saveSheet(){
 }
 
 let pendingDeleteId = null;
+let pendingDeleteNum = null; // номер позиции — на случай удаления из открытой карточки, id к этому моменту может быть неактуален
 let pendingDeleteFromSheet = false;
 
 function askDeletePosition(id, ev){
@@ -1194,6 +1200,7 @@ function askDeletePosition(id, ev){
 }
 function askDeleteFromSheet(){
   pendingDeleteId = editingId;
+  pendingDeleteNum = parseInt(document.getElementById('sheetNum').textContent);
   pendingDeleteFromSheet = true;
   document.getElementById('confirmOverlay').classList.add('open');
 }
@@ -1203,11 +1210,13 @@ function closeConfirm(){
 }
 function confirmDelete(){
   const id = pendingDeleteId;
+  const num = pendingDeleteNum;
   const fromSheet = pendingDeleteFromSheet;
   document.getElementById('confirmOverlay').classList.remove('open');
   pendingDeleteId = null;
+  pendingDeleteNum = null;
   if(id==null) return;
-  positions = positions.filter(x=>x.id!==id);
+  positions = fromSheet ? positions.filter(x=>x.num!==num) : positions.filter(x=>x.id!==id);
   if(fromSheet){
     saveViewState(null);
     savingPosition = false;
