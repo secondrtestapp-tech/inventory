@@ -148,7 +148,7 @@
   .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
   .textarea-wrap{position:relative;}
-  #micWave{position:absolute; left:8px; right:38px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
+  #micWave{position:absolute; right:38px; width:130px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
   .sheet textarea{width:100%; min-height:180px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 38px 70px 12px; font-family:var(--sans); font-size:18px; color:var(--ink); resize:none; background:var(--surface);}
   .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
 
@@ -251,7 +251,7 @@
 
     <div class="textarea-wrap">
       <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
-      <canvas id="micWave" width="300" height="56" style="display:none;"></canvas>
+      <canvas id="micWave" width="130" height="56" style="display:none;"></canvas>
       <button class="mic-btn" id="micBtn" onclick="toggleMic()">
         <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
         <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -324,7 +324,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v43';
+const APP_VERSION = 'v44';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -337,6 +337,7 @@ let micStream = null;
 let waveAudioCtx = null;
 let waveAnalyser = null;
 let waveAnimFrame = null;
+let hadSound = false; // был ли за время записи хоть один момент громче фонового шума
 let sheetAudioDataUrl = null; // база64 последней записанной (и распознанной) аудиозаписи текущей позиции — уходит в Таблицу при сохранении
 const locallyPhotographedPositions = new Set(); // ключи "пачка:номер_позиции" — сфотографированы в этой сессии, сервер их фото не подменяет
 const locallyPhotographedPacks = new Set(); // номера пачек — то же самое для общих фото пачки
@@ -910,6 +911,7 @@ function startWave(stream){
       let level = 0;
       if(rawLevel > noiseFloor){
         level = Math.min(1, rawLevel - noiseFloor);
+        hadSound = true;
       }
 
       frameCount++;
@@ -990,6 +992,10 @@ async function toggleMic(){
     if(!audioChunks.length){
       return;
     }
+    if(!hadSound){
+      showToast('Ничего не расслышал — тишина, попробуй ещё раз');
+      return;
+    }
 
     btn.classList.add('processing');
 
@@ -1017,6 +1023,7 @@ async function toggleMic(){
 
   mediaRecorder.start();
   recording = true;
+  hadSound = false;
   btn.classList.add('recording');
   startWave(stream);
 }
