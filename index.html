@@ -192,7 +192,8 @@
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v16</div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v17</div>
+<div id="debugLog" style="position:fixed; bottom:0; left:0; right:0; max-height:150px; overflow-y:auto; background:rgba(0,0,0,.88); color:#39FF14; font-family:monospace; font-size:10px; line-height:1.4; padding:6px 8px; z-index:500; white-space:pre-wrap;"></div>
 <div id="app">
 
   <div class="topbar">
@@ -321,6 +322,15 @@ let packs = {};
 let currentPackNum = '030';
 let packRequestId = 0; // счётчик заходов в пачку — для отбрасывания устаревших ответов сети
 
+function debugLog(msg){
+  const el = document.getElementById('debugLog');
+  if(!el) return;
+  const t = new Date();
+  const time = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0')+'.'+String(t.getMilliseconds()).padStart(3,'0');
+  el.textContent += `[${time}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
 // показывает номер пачки на экране в три знака (030, 001, 999) —
 // саму пачку для сверки с сервером (currentPackNum) это не трогает
 function padPack(n){
@@ -426,9 +436,11 @@ async function sendToServer(payload){
 async function retryPendingSaves(){
   const items = await dbGetAllPending();
   if(!items.length) return;
+  debugLog(`retryPendingSaves: в очереди ${items.length} шт: ` + items.map(it=>`[пачка=${it.payload.pack},поз=${it.payload.posNum},тип=${it.payload.type}]`).join(' '));
   let sentAny = false;
   for(const item of items){
     const result = await sendToServer(item.payload);
+    debugLog(`  отправка пачка=${item.payload.pack} поз=${item.payload.posNum}: ${result.ok ? 'OK' : 'ошибка: '+result.error}`);
     if(result.ok){
       await dbDeletePending(item.id);
       sentAny = true;
@@ -453,6 +465,7 @@ window.addEventListener('beforeunload', function(e){
 // чтобы оно не "пропадало" из списка, пока реально отправляется
 async function mergePendingIntoCurrentPack(){
   const items = await dbGetAllPending();
+  const before = positions.length;
   items.forEach(item => {
     const p = item.payload;
     if(String(p.pack) !== String(currentPackNum)) return;
@@ -465,6 +478,7 @@ async function mergePendingIntoCurrentPack(){
       if(!packPhotosArr.includes(p.photo)) packPhotosArr.push(p.photo);
     }
   });
+  if(items.length) debugLog(`mergePending: pack=${currentPackNum}, всего в очереди ${items.length}, позиций было ${before} стало ${positions.length}`);
 }
 
 async function sendPositionToServer(packNum, posObj){
@@ -577,6 +591,7 @@ async function syncFromServer(num){
 
 async function switchToPack(rawNum){
   const num = padPack(rawNum);
+  debugLog(`switchToPack(${rawNum}) → ${num}, cache=${packs[num]?('есть,'+packs[num].positions.length+'поз'):'нет'}`);
   // сохраняем локальный снимок текущей пачки — для мгновенного переключения офлайн
   packs[currentPackNum] = {
     photos: [...packPhotosArr],
@@ -585,6 +600,7 @@ async function switchToPack(rawNum){
   };
   currentPackNum = num;
   const myRequestId = ++packRequestId; // метка именно этого захода в пачку
+  debugLog(`  requestId=${myRequestId}`);
   document.getElementById('packNum').textContent = num;
   sortAscending = false;
   document.getElementById('sortToggle').textContent = 'сначала новые';
@@ -603,17 +619,20 @@ async function switchToPack(rawNum){
   }
   await mergePendingIntoCurrentPack();
   renderPackPhotos();
+  debugLog(`  id=${myRequestId} render#1 (кэш/пусто): ${positions.length} поз.`);
   render();
 
   // потом подтягиваем настоящее состояние из Google, если есть связь
   const fresh = await syncFromServer(num);
-  if(myRequestId !== packRequestId) return; // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
+  debugLog(`  id=${myRequestId} syncFromServer вернул: ${fresh ? fresh.positions.length+' поз.' : 'null (ошибка сети)'}, текущий requestId сейчас=${packRequestId}`);
+  if(myRequestId !== packRequestId){ debugLog(`  id=${myRequestId} УСТАРЕЛ, пропускаю применение`); return; } // за это время уже начался другой, более свежий заход — этот ответ устарел, не применяем
   if(fresh){
     positions = fresh.positions;
     packPhotosArr = fresh.packPhotos;
     posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
     await mergePendingIntoCurrentPack();
     renderPackPhotos();
+    debugLog(`  id=${myRequestId} render#2 (с сервера): ${positions.length} поз.`);
     render();
   }
   packs[num] = { photos:[...packPhotosArr], positions: positions.map(p=>({...p, photos:[...p.photos]})), posCounter: posCounter };
@@ -854,6 +873,11 @@ function closeLightbox(ev){
 }
 
 function render(){
+  try{
+    const stack = (new Error()).stack || '';
+    const caller = stack.split('\n')[2] ? stack.split('\n')[2].trim().slice(0,60) : '?';
+    debugLog(`render() вызван: пачка=${currentPackNum}, positions.length=${positions.length}, из: ${caller}`);
+  }catch(e){}
   const list = document.getElementById('positions');
   const hint = document.getElementById('emptyHint');
   document.getElementById('posCount').textContent = positions.length;
@@ -882,6 +906,7 @@ function render(){
 }
 
 async function init(){
+  debugLog('init() старт');
   // Заглушка "030" по умолчанию не содержит настоящих данных — синхронизировать её незачем.
   // Реальная загрузка данных пачки происходит в switchToPack(), когда пользователь
   // явно выбирает пачку. Отдельный сетевой запрос здесь раньше мог "гоняться наперегонки"
