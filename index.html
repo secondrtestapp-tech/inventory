@@ -183,10 +183,16 @@
   .suggest-item{padding:10px 12px; font-size:14px; color:var(--ink); border-bottom:1px solid var(--line);}
   .suggest-item:last-child{border-bottom:none;}
   .suggest-item:active{background:var(--surface);}
+
+  .pending-badge{
+    width:100%; text-align:center; background:#FDECC8; color:#8A4A17; font-size:12.5px; font-weight:700;
+    padding:8px; border:none; display:none; align-items:center; justify-content:center; gap:6px; font-family:var(--sans);
+  }
+  .pending-badge:active{background:#FBE0A8;}
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v12</div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v14</div>
 <div id="app">
 
   <div class="topbar">
@@ -202,6 +208,8 @@
       сканировать другую
     </button>
   </div>
+
+  <button class="pending-badge" id="pendingBadge" onclick="retryPendingSaves()"></button>
 
   <div class="section-label">Фото пачки целиком</div>
   <div class="pack-photos" id="packPhotos">
@@ -324,62 +332,176 @@ function showToast(msg){
   showToast._timer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-async function loadKnownTexts(){
+/* ---------- офлайн-хранилище (IndexedDB) для неотправленных данных ---------- */
+const DB_NAME = 'opisDB';
+const STORE_NAME = 'pending';
+let dbPromise = null;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    try{
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch(e){ reject(e); }
+  });
+  return dbPromise;
+}
+async function dbAddPending(payload){
   try{
-    const res = await fetch(APPS_SCRIPT_URL);
-    const data = await res.json();
-    const set = new Set();
-    (data.positions || []).forEach(p => { if(p.text) set.add(p.text); });
-    knownTexts = [...set];
-  } catch(e){
-    knownTexts = [];
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).add({ payload, ts: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch(e){ /* хранилище недоступно — данные просто не встанут в очередь */ }
+}
+async function dbGetAllPending(){
+  try{
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch(e){ return []; }
+}
+async function dbDeletePending(id){
+  try{
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch(e){ /* ignore */ }
+}
+
+let pendingCount = 0;
+
+async function updatePendingBadge(){
+  const badge = document.getElementById('pendingBadge');
+  const items = await dbGetAllPending();
+  pendingCount = items.length;
+  if(pendingCount > 0){
+    badge.textContent = '⏳ Не отправлено: ' + pendingCount + ' — не закрывай страницу, попробую снова';
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
   }
 }
 
-async function sendPositionToServer(packNum, posObj){
+async function queuePending(payload){
+  await dbAddPending(payload);
+  await updatePendingBadge();
+}
+
+async function sendToServer(payload){
   try{
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'position',
-        pack: packNum,
-        posNum: posObj.num,
-        qty: posObj.qty,
-        text: posObj.text,
-        photos: posObj.photos || []
-      })
-    });
+    const res = await fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify(payload) });
     const data = await res.json();
-    if(data && data.ok){
-      showToast('Сохранено в Google');
-      if(posObj.text && !knownTexts.includes(posObj.text)) knownTexts.push(posObj.text);
-    } else {
-      showToast('Не удалось сохранить: ' + (data && data.error ? data.error : 'неизвестная ошибка'));
-    }
+    if(data && data.ok) return { ok:true, data };
+    return { ok:false, error: (data && data.error) || 'сервер вернул ошибку' };
   } catch(e){
-    showToast('Нет связи с Google — проверь интернет');
+    return { ok:false, error: 'нет связи (' + e.message + ')' };
+  }
+}
+
+async function retryPendingSaves(){
+  const items = await dbGetAllPending();
+  if(!items.length) return;
+  let sentAny = false;
+  for(const item of items){
+    const result = await sendToServer(item.payload);
+    if(result.ok){
+      await dbDeletePending(item.id);
+      sentAny = true;
+    }
+  }
+  await updatePendingBadge();
+  if(pendingCount === 0 && sentAny){
+    showToast('Все отложенные данные отправлены в Google');
+  }
+}
+
+window.addEventListener('online', retryPendingSaves);
+setInterval(retryPendingSaves, 20000);
+window.addEventListener('beforeunload', function(e){
+  if(pendingCount > 0){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// подмешивает то, что ещё не долетело до Google (из офлайн-очереди), в текущий вид пачки —
+// чтобы оно не "пропадало" из списка, пока реально отправляется
+async function mergePendingIntoCurrentPack(){
+  const items = await dbGetAllPending();
+  items.forEach(item => {
+    const p = item.payload;
+    if(String(p.pack) !== String(currentPackNum)) return;
+    if(p.type === 'position'){
+      const exists = positions.some(pos => pos.num === Number(p.posNum));
+      if(!exists){
+        positions.push({ id: nextId++, num: Number(p.posNum), text: p.text || null, qty: p.qty || 1, photos: p.photos || [], pending: true });
+      }
+    } else if(p.type === 'pack_photo'){
+      if(!packPhotosArr.includes(p.photo)) packPhotosArr.push(p.photo);
+    }
+  });
+}
+
+async function sendPositionToServer(packNum, posObj){
+  const payload = {
+    type: 'position',
+    pack: packNum,
+    posNum: posObj.num,
+    qty: posObj.qty,
+    text: posObj.text,
+    photos: posObj.photos || []
+  };
+  const result = await sendToServer(payload);
+  if(result.ok){
+    showToast('Сохранено в Google');
+    if(posObj.text && !knownTexts.includes(posObj.text)) knownTexts.push(posObj.text);
+    delete posObj.pending;
+    render();
+  } else {
+    showToast('Не отправлено сейчас — сохранил локально, попробую ещё раз');
+    await queuePending(payload);
   }
 }
 
 async function sendPackPhotoToServer(packNum, dataUrl, idx){
-  try{
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ type: 'pack_photo', pack: packNum, photo: dataUrl, idx: idx })
-    });
-    const data = await res.json();
-    if(data && data.ok){ showToast('Фото пачки сохранено'); }
-    else { showToast('Не удалось сохранить фото пачки'); }
-  } catch(e){
-    showToast('Нет связи с Google — проверь интернет');
+  const payload = { type: 'pack_photo', pack: packNum, photo: dataUrl, idx: idx };
+  const result = await sendToServer(payload);
+  if(result.ok){
+    showToast('Фото пачки сохранено');
+  } else {
+    showToast('Фото не отправлено сейчас — попробую ещё раз');
+    await queuePending(payload);
   }
 }
 
+/* ---------- автоподсказки: матч с начала слова, минимум 2 символа ---------- */
 function onPosTextInput(){
-  const val = document.getElementById('posText').value.trim().toLowerCase();
+  const raw = document.getElementById('posText').value.trim();
+  const val = raw.toLowerCase();
   const box = document.getElementById('suggestBox');
-  if(!val){ box.style.display='none'; box.innerHTML=''; return; }
-  const matches = knownTexts.filter(t => t.toLowerCase().includes(val) && t.toLowerCase() !== val).slice(0,5);
+  if(val.length < 2){ box.style.display='none'; box.innerHTML=''; return; }
+  const matches = knownTexts.filter(t => {
+    const lower = t.toLowerCase();
+    if(lower === val) return false;
+    return lower.split(/\s+/).some(word => word.startsWith(val));
+  }).slice(0,5);
   if(!matches.length){ box.style.display='none'; box.innerHTML=''; return; }
   box.innerHTML = matches.map(t => `<div class="suggest-item" onclick="pickSuggestion(this)">${t}</div>`).join('');
   box.style.display = 'block';
@@ -417,53 +539,110 @@ function confirmNewPack(){
   switchToPack(v);
 }
 
-function switchToPack(num){
-  // persist current pack's live state
+// забирает из Google ВСЕ строки, обновляет список известных текстов (для подсказок)
+// и возвращает то, что относится именно к указанной пачке
+async function syncFromServer(num){
+  try{
+    const res = await fetch(APPS_SCRIPT_URL);
+    const data = await res.json();
+    const rows = data.positions || [];
+
+    const textSet = new Set(knownTexts);
+    rows.forEach(r => { if(r.text) textSet.add(r.text); });
+    knownTexts = [...textSet];
+
+    const packRows = rows.filter(r => String(r.pack) === String(num));
+    const posRows = packRows.filter(r => r.num !== null && r.num !== '' && r.num !== undefined);
+    const packPhotoRow = packRows.find(r => r.num === null || r.num === '' || r.num === undefined);
+
+    return {
+      positions: posRows.map(r => ({
+        id: nextId++, num: Number(r.num), text: r.text || null,
+        qty: Number(r.qty) || 1, photos: r.photos || []
+      })),
+      packPhotos: packPhotoRow ? (packPhotoRow.photos || []) : []
+    };
+  } catch(e){
+    return null;
+  }
+}
+
+async function switchToPack(num){
+  // сохраняем локальный снимок текущей пачки — для мгновенного переключения офлайн
   packs[currentPackNum] = {
     photos: [...packPhotosArr],
     positions: positions.map(p=>({...p, photos:[...p.photos]})),
     posCounter: posCounter
   };
   currentPackNum = num;
-  const saved = packs[num];
-  if(saved){
-    positions = saved.positions.map(p=>({...p, photos:[...p.photos]}));
-    posCounter = saved.posCounter;
-    packPhotosArr = [...saved.photos];
+  document.getElementById('packNum').textContent = num;
+  sortAscending = false;
+  document.getElementById('sortToggle').textContent = 'сначала новые';
+  closePackList();
+
+  // сразу показываем то, что уже знаем локально — не ждём сеть
+  const cached = packs[num];
+  if(cached){
+    positions = cached.positions.map(p=>({...p, photos:[...p.photos]}));
+    posCounter = cached.posCounter;
+    packPhotosArr = [...cached.photos];
   } else {
     positions = [];
     posCounter = 0;
     packPhotosArr = [];
-    packs[num] = { photos: [], positions: [], posCounter: 0 };
   }
-  document.getElementById('packNum').textContent = num;
-  sortAscending = false;
-  document.getElementById('sortToggle').textContent = 'сначала новые';
+  await mergePendingIntoCurrentPack();
   renderPackPhotos();
   render();
-  closePackList();
+
+  // потом подтягиваем настоящее состояние из Google, если есть связь
+  const fresh = await syncFromServer(num);
+  if(fresh){
+    positions = fresh.positions;
+    packPhotosArr = fresh.packPhotos;
+    posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
+    await mergePendingIntoCurrentPack();
+    renderPackPhotos();
+    render();
+  }
+  packs[num] = { photos:[...packPhotosArr], positions: positions.map(p=>({...p, photos:[...p.photos]})), posCounter: posCounter };
 }
 
-function openPackList(){
+async function openPackList(){
   const container = document.getElementById('packListItems');
+  container.innerHTML = '<div style="padding:16px 4px;color:var(--ink-soft);font-size:13px;">Загружаю список пачек…</div>';
+  document.getElementById('packListBackdrop').classList.add('open');
+  document.getElementById('packListSheet').classList.add('open');
+
+  let counts = {};
+  Object.keys(packs).forEach(k => counts[k] = packs[k].positions.length);
+  try{
+    const res = await fetch(APPS_SCRIPT_URL);
+    const data = await res.json();
+    counts = {};
+    (data.positions || []).forEach(r => {
+      if(r.num === null || r.num === '' || r.num === undefined) return;
+      const key = String(r.pack);
+      counts[key] = (counts[key] || 0) + 1;
+    });
+  } catch(e){
+    // офлайн — остаёмся с тем, что знаем локально
+  }
+  counts[currentPackNum] = positions.length;
+
   container.innerHTML = '';
-  const merged = {...packs};
-  merged[currentPackNum] = { photos: packPhotosArr, positions: positions };
-  const nums = Object.keys(merged).sort((a,b)=>{
+  const nums = Object.keys(counts).sort((a,b)=>{
     const na = parseInt(a), nb = parseInt(b);
     if(!isNaN(na) && !isNaN(nb)) return nb - na;
     return b.localeCompare(a);
   });
   nums.forEach(num=>{
-    const p = merged[num];
     const btn = document.createElement('button');
     btn.className = 'pack-list-item' + (num===currentPackNum ? ' active' : '');
     btn.onclick = ()=> switchToPack(num);
-    btn.innerHTML = `<span class="pack-list-num">${num}</span><span class="pack-list-meta">${p.positions.length} поз.${num===currentPackNum ? ' · текущая' : ''}</span>`;
+    btn.innerHTML = `<span class="pack-list-num">${num}</span><span class="pack-list-meta">${counts[num]} поз.${num===currentPackNum ? ' · текущая' : ''}</span>`;
     container.appendChild(btn);
   });
-  document.getElementById('packListBackdrop').classList.add('open');
-  document.getElementById('packListSheet').classList.add('open');
 }
 function closePackList(){
   document.getElementById('packListBackdrop').classList.remove('open');
@@ -493,7 +672,6 @@ function renderPackPhotos(){
   const addBtn = document.getElementById('addPackPhotoBtn');
   container.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
   [...packPhotosArr].reverse().forEach((url)=>{
-    const realIdx = packPhotosArr.indexOf(url);
     const wrap = document.createElement('div');
     wrap.className = 'thumb-wrap';
     const img = document.createElement('img');
@@ -680,7 +858,7 @@ function render(){
     card.innerHTML = `
       <div class="pos-num">${p.num}</div>
       <div class="pos-body">
-        <div class="pos-text ${p.text?'':'placeholder'}">${p.text || 'без описания — см. фото'}</div>
+        <div class="pos-text ${p.text?'':'placeholder'}">${p.pending ? '<span title="ещё не отправлено в Google">⏳ </span>' : ''}${p.text || 'без описания — см. фото'}</div>
         ${p.photos.length ? `<div class="pos-thumbs">${shown}${more}</div>` : ''}
       </div>
       <div class="qty-badge">×${p.qty || 1}</div>
@@ -692,7 +870,23 @@ function render(){
   });
 }
 
-loadKnownTexts();
+async function init(){
+  await mergePendingIntoCurrentPack();
+  render();
+  renderPackPhotos();
+  await updatePendingBadge();
+  retryPendingSaves();
+  const fresh = await syncFromServer(currentPackNum);
+  if(fresh){
+    positions = fresh.positions;
+    packPhotosArr = fresh.packPhotos;
+    posCounter = Math.max(0, ...positions.map(p=>p.num));
+    await mergePendingIntoCurrentPack();
+    render();
+    renderPackPhotos();
+  }
+}
+init();
 </script>
 </body>
 </html>
