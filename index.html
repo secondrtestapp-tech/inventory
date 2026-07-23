@@ -192,8 +192,8 @@
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v17</div>
-<div id="debugLog" style="position:fixed; bottom:0; left:0; right:0; max-height:150px; overflow-y:auto; background:rgba(0,0,0,.88); color:#39FF14; font-family:monospace; font-size:10px; line-height:1.4; padding:6px 8px; z-index:500; white-space:pre-wrap;"></div>
+<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v19</div>
+<div id="debugLog" style="position:fixed; bottom:0; left:0; right:0; max-height:150px; overflow-y:auto; background:rgba(0,0,0,.88); color:#39FF14; font-family:monospace; font-size:10px; line-height:1.4; padding:6px 8px; z-index:30; white-space:pre-wrap;"></div>
 <div id="app">
 
   <div class="topbar">
@@ -472,7 +472,7 @@ async function mergePendingIntoCurrentPack(){
     if(p.type === 'position'){
       const exists = positions.some(pos => pos.num === Number(p.posNum));
       if(!exists){
-        positions.push({ id: nextId++, num: Number(p.posNum), text: p.text || null, qty: p.qty || 1, photos: p.photos || [], pending: true });
+        positions.push({ id: nextId++, num: Number(p.posNum), text: p.text || null, qty: p.qty || 1, photos: Array.isArray(p.photos) ? p.photos : (p.photos ? [p.photos] : []), pending: true });
       }
     } else if(p.type === 'pack_photo'){
       if(!packPhotosArr.includes(p.photo)) packPhotosArr.push(p.photo);
@@ -580,7 +580,7 @@ async function syncFromServer(num){
     return {
       positions: posRows.map(r => ({
         id: nextId++, num: Number(r.num), text: r.text || null,
-        qty: Number(r.qty) || 1, photos: r.photos || []
+        qty: Number(r.qty) || 1, photos: Array.isArray(r.photos) ? r.photos : (r.photos ? [r.photos] : [])
       })),
       packPhotos: packPhotoRow ? (packPhotoRow.photos || []) : []
     };
@@ -884,24 +884,29 @@ function render(){
   list.querySelectorAll('.position-card').forEach(el=>el.remove());
   hint.style.display = positions.length ? 'none' : 'block';
   positions.slice().sort((a,b)=> sortAscending ? a.num-b.num : b.num-a.num).forEach(p=>{
-    const card = document.createElement('div');
-    card.className='position-card';
-    card.onclick = ()=>openSheetEdit(p.id);
-    const maxShown = 3;
-    const shown = p.photos.slice(0,maxShown).map(url=>`<img src="${url}" onclick="openLightbox('${url}', event)">`).join('');
-    const more = p.photos.length > maxShown ? `<div class="more">+${p.photos.length - maxShown}</div>` : '';
-    card.innerHTML = `
-      <div class="pos-num">${p.num}</div>
-      <div class="pos-body">
-        <div class="pos-text ${p.text?'':'placeholder'}">${p.pending ? '<span title="ещё не отправлено в Google">⏳ </span>' : ''}${p.text || 'без описания — см. фото'}</div>
-        ${p.photos.length ? `<div class="pos-thumbs">${shown}${more}</div>` : ''}
-      </div>
-      <div class="qty-badge">×${p.qty || 1}</div>
-      <button class="pos-trash" onclick="askDeletePosition(${p.id}, event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/></svg>
-      </button>
-    `;
-    list.appendChild(card);
+    try{
+      const card = document.createElement('div');
+      card.className='position-card';
+      card.onclick = ()=>openSheetEdit(p.id);
+      const maxShown = 3;
+      const photosArr = Array.isArray(p.photos) ? p.photos : [];
+      const shown = photosArr.slice(0,maxShown).map(url=>`<img src="${url}" onclick="openLightbox('${url}', event)">`).join('');
+      const more = photosArr.length > maxShown ? `<div class="more">+${photosArr.length - maxShown}</div>` : '';
+      card.innerHTML = `
+        <div class="pos-num">${p.num}</div>
+        <div class="pos-body">
+          <div class="pos-text ${p.text?'':'placeholder'}">${p.pending ? '<span title="ещё не отправлено в Google">⏳ </span>' : ''}${p.text || 'без описания — см. фото'}</div>
+          ${photosArr.length ? `<div class="pos-thumbs">${shown}${more}</div>` : ''}
+        </div>
+        <div class="qty-badge">×${p.qty || 1}</div>
+        <button class="pos-trash" onclick="askDeletePosition(${p.id}, event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/></svg>
+        </button>
+      `;
+      list.appendChild(card);
+    }catch(e){
+      debugLog(`ОШИБКА при отрисовке позиции id=${p.id} num=${p.num}: ${e.message} — карточка пропущена, остальные продолжают рисоваться`);
+    }
   });
 }
 
