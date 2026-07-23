@@ -332,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v51';
+const APP_VERSION = 'v52';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -454,6 +454,21 @@ async function dbDeletePending(id){
   } catch(e){ /* ignore */ }
 }
 
+// Убирает из очереди неотправленных сохранений все более старые попытки именно по этой
+// позиции — иначе устаревшая отложенная запись рано или поздно уйдёт на сервер сама
+// и перепишет уже более свежие, успешно сохранённые данные обратно на старые.
+async function dbDeletePendingForPosition(pack, posNum){
+  try{
+    const items = await dbGetAllPending();
+    const stale = items.filter(it =>
+      it.payload && it.payload.type === 'position' &&
+      String(it.payload.pack) === String(pack) &&
+      Number(it.payload.posNum) === Number(posNum)
+    );
+    for(const it of stale) await dbDeletePending(it.id);
+  } catch(e){ /* ignore */ }
+}
+
 let pendingCount = 0;
 
 async function updatePendingBadge(){
@@ -469,6 +484,9 @@ async function updatePendingBadge(){
 }
 
 async function queuePending(payload){
+  if(payload.type === 'position'){
+    await dbDeletePendingForPosition(payload.pack, payload.posNum);
+  }
   await dbAddPending(payload);
   await updatePendingBadge();
 }
@@ -551,6 +569,8 @@ async function sendPositionToServer(packNum, posObj){
     showToast('Сохранено в Google' + photoNote);
     if(posObj.text && !knownTexts.includes(posObj.text)) knownTexts.push(posObj.text);
     delete posObj.pending;
+    await dbDeletePendingForPosition(packNum, posObj.num); // на случай если по этой позиции в очереди уже висела более старая попытка
+    await updatePendingBadge();
     render();
   } else {
     showToast('Не отправлено сейчас — сохранил локально, попробую ещё раз');
