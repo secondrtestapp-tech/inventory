@@ -332,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v47';
+const APP_VERSION = 'v48';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -829,10 +829,14 @@ function isPhoneDevice(){
 // только обычный выбор файла (в том числе из галереи). На телефонах остаётся как есть.
 function applyCameraRestriction(){
   if(isPhoneDevice()) return;
-  const packInput = document.getElementById('packPhotoInput');
-  const sheetInput = document.getElementById('posPhotoInput');
-  if(packInput) packInput.removeAttribute('capture');
-  if(sheetInput) sheetInput.removeAttribute('capture');
+  // Снять атрибут capture недостаточно — на iOS системное окно выбора файла всё равно
+  // предлагает камеру как один из вариантов, просто не открывает её напрямую. Единственный
+  // надёжный способ гарантированно исключить фото с планшета/компьютера — убрать саму
+  // кнопку добавления фото целиком.
+  const packBtn = document.getElementById('addPackPhotoBtn');
+  const sheetBtn = document.getElementById('sheetPhotoAttachBtn');
+  if(packBtn) packBtn.style.display = 'none';
+  if(sheetBtn) sheetBtn.style.display = 'none';
 }
 
 function driveImgUrl(url){
