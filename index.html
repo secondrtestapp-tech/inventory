@@ -27,16 +27,18 @@
      то же самое определение "не телефон", что уже используется для камеры и QR.
      На телефоне ничего из этого не действует вообще. */
   body.wide{justify-content:flex-start;}
-  body.wide #app{max-width:380px; margin-left:20px;}
+  body.wide #app{max-width:430px; margin-left:20px;}
   body.wide .fab{position:absolute; left:auto; right:0; bottom:0; max-width:none; width:auto; transform:none;}
   body.wide .sheet-backdrop{display:none;} /* список остаётся видимым и кликабельным рядом с открытой панелью, затемнение не нужно */
   #sheet.wide-panel{
-    left:auto; right:0; bottom:0; top:0; transform:translateX(100%);
-    width:640px; max-width:60vw; min-width:420px;
+    left:474px; right:0; bottom:0; top:0; transform:translateX(100%);
+    width:auto; max-width:none; min-width:0;
     border-radius:0; height:100vh; max-height:100vh;
     box-shadow:-8px 0 24px rgba(0,0,0,.12);
     padding:20px 22px calc(20px + env(safe-area-inset-bottom));
   }
+  body.wide #packListSheet{left:20px; right:auto; transform:translateY(100%); width:430px; max-width:430px;}
+  body.wide #packListSheet.open{transform:translateY(0);}
   #sheet.wide-panel.open{transform:translateX(0);}
   #sheet.wide-panel .sheet-handle{display:none;}
 
@@ -148,8 +150,8 @@
   .qr-block{display:flex; align-items:center; justify-content:center; flex:none; width:64px; height:64px; padding:4px; background:var(--surface); border-radius:10px; border:1px solid var(--line);}
   .qr-block img{width:100%; height:100%; border-radius:4px; display:block;}
 
-  .mic-btn{width:28px; height:28px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; position:absolute; right:10px; bottom:10px; z-index:2; box-shadow:0 1px 4px rgba(0,0,0,.15);}
-  .mic-btn svg{width:13px; height:13px;}
+  .mic-btn{width:42px; height:42px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; position:absolute; right:10px; bottom:10px; z-index:2; box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .mic-btn svg{width:20px; height:20px;}
   .mic-btn .check-icon{display:none;}
   .mic-btn.recording .mic-icon{display:none;}
   .mic-btn.recording .check-icon{display:block;}
@@ -158,17 +160,17 @@
   @keyframes breathe{0%,100%{opacity:.4;} 50%{opacity:1;}}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
 
-  .qty-row{display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
+  .qty-row{display:flex; align-items:center; justify-content:flex-start; gap:18px; margin-top:14px;}
   .qty-label{font-size:13px; color:var(--ink-soft); font-weight:600;}
-  .qty-stepper{display:flex; align-items:center; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
-  .qty-stepper button{width:38px; height:38px; border:none; background:var(--surface); color:var(--ink); font-size:18px; font-weight:600; display:flex; align-items:center; justify-content:center;}
+  .qty-stepper{display:flex; align-items:center; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .qty-stepper button{width:57px; height:57px; border:none; background:var(--surface); color:var(--ink); font-size:26px; font-weight:600; display:flex; align-items:center; justify-content:center;}
   .qty-stepper button:active{background:var(--line);}
-  .qty-stepper input{width:46px; height:38px; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line); text-align:center; font-size:15px; font-weight:700; font-family:var(--mono); color:var(--ink); background:var(--paper);}
+  .qty-stepper input{width:69px; height:57px; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line); text-align:center; font-size:22px; font-weight:700; font-family:var(--mono); color:var(--ink); background:var(--paper);}
   .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
   .textarea-wrap{position:relative;}
-  #micWave{position:absolute; right:46px; width:130px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
-  .sheet textarea{width:100%; min-height:180px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 38px 70px 12px; font-family:var(--sans); font-size:18px; color:var(--ink); resize:none; background:var(--surface);}
+  #micWave{position:absolute; right:60px; width:130px; bottom:0; height:48px; z-index:1; display:none; pointer-events:none;}
+  .sheet textarea{width:100%; min-height:180px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 56px 70px 12px; font-family:var(--sans); font-size:18px; color:var(--ink); resize:none; background:var(--surface);}
   .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
 
   .photo-row{display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap;}
@@ -239,7 +241,12 @@
 
   <button class="pending-badge" id="pendingBadge" onclick="retryPendingSaves()"></button>
 
-  <div class="section-label">Фото пачки целиком</div>
+  <div class="section-label" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+    <span>Фото пачки целиком</span>
+    <div class="qr-block" id="packQrBlock" style="display:none;" title="отсканируй с iPhone, чтобы открыть эту пачку там">
+      <img id="packQrImg" src="" alt="QR-код пачки">
+    </div>
+  </div>
   <div class="pack-photos" id="packPhotos">
     <button class="add-pack-photo" id="addPackPhotoBtn" onclick="document.getElementById('packPhotoInput').click()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -346,7 +353,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v57';
+const APP_VERSION = 'v58';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -764,6 +771,7 @@ async function switchToPack(rawNum){
   const myRequestId = ++packRequestId; // метка именно этого захода в пачку
   debugLog(`  requestId=${myRequestId}`);
   document.getElementById('packNum').textContent = num;
+  updatePackQrBlock();
   sortAscending = false;
   document.getElementById('sortToggle').textContent = 'сначала новые';
   closePackList();
@@ -1002,6 +1010,21 @@ function openSheetEdit(id){
 
 // QR-код нужен только на планшете/компьютере — сценарий "открыл позицию на iPad, отсканировал с iPhone".
 // На самом телефоне сканировать нечего, поэтому там блок всегда скрыт.
+// QR-код на саму пачку (без позиции) — сценарий "на iPad открыта пачка целиком,
+// нужно быстро продолжить фотографировать её общие фото уже с iPhone".
+function updatePackQrBlock(){
+  const block = document.getElementById('packQrBlock');
+  if(!block) return;
+  if(isPhoneDevice()){
+    block.style.display = 'none';
+    return;
+  }
+  const base = window.location.origin + window.location.pathname;
+  const target = base + '?p=' + encodeURIComponent(currentPackNum);
+  document.getElementById('packQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=L&data=' + encodeURIComponent(target);
+  block.style.display = 'flex';
+}
+
 function updateQrBlock(posNum){
   const block = document.getElementById('qrBlock');
   if(isPhoneDevice()){
@@ -1387,7 +1410,7 @@ function render(){
         </div>
         <div class="qty-badge">×${p.qty || 1}</div>
         <button class="pos-trash" onclick="askDeletePosition(${p.id}, event)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/><path d="M12 10v7"/></svg>
         </button>
       `;
       list.appendChild(card);
