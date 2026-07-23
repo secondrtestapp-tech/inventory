@@ -134,7 +134,7 @@
   .mic-btn.recording{background:var(--danger); animation:pulse 1.1s infinite;}
   .mic-btn.processing{background:var(--accent-dark); opacity:.7;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
-  .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 14px 2px;}
+  .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 14px 2px; text-align:right;}
 
   .qty-row{display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
   .qty-label{font-size:13px; color:var(--ink-soft); font-weight:600;}
@@ -144,7 +144,7 @@
   .qty-stepper input{width:46px; height:38px; border:none; border-left:1px solid var(--line); border-right:1px solid var(--line); text-align:center; font-size:15px; font-weight:700; font-family:var(--mono); color:var(--ink); background:var(--paper);}
   .qty-stepper input::-webkit-outer-spin-button, .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
-  .sheet textarea{width:100%; min-height:64px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
+  .sheet textarea{width:100%; min-height:96px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
   .sheet textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
 
   .photo-row{display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap;}
@@ -247,6 +247,7 @@
       </button>
     </div>
     <div class="mic-hint" id="micHint">нажми микрофон и скажи, что кладёшь</div>
+    <canvas id="micWave" width="600" height="40" style="display:none; width:100%; height:32px; margin:-6px 0 14px;"></canvas>
 
     <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
     <div class="suggest-box" id="suggestBox"></div>
@@ -315,7 +316,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v33';
+const APP_VERSION = 'v34';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -325,6 +326,9 @@ let recording = false;
 let mediaRecorder = null;
 let audioChunks = [];
 let micStream = null;
+let waveAudioCtx = null;
+let waveAnalyser = null;
+let waveAnimFrame = null;
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
@@ -832,6 +836,54 @@ function changeQty(delta){
   inp.value = v;
 }
 
+// Рисует живую волну по реальному сигналу с микрофона, пока идёт запись.
+function startWave(stream){
+  try{
+    waveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = waveAudioCtx.createMediaStreamSource(stream);
+    waveAnalyser = waveAudioCtx.createAnalyser();
+    waveAnalyser.fftSize = 256;
+    source.connect(waveAnalyser);
+
+    const canvas = document.getElementById('micWave');
+    canvas.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+    const dataArray = new Uint8Array(waveAnalyser.frequencyBinCount);
+
+    const draw = () => {
+      waveAnimFrame = requestAnimationFrame(draw);
+      waveAnalyser.getByteTimeDomainData(dataArray);
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--danger') || '#C43D3D';
+      ctx.beginPath();
+      const step = w / dataArray.length;
+      for(let i=0; i<dataArray.length; i++){
+        const v = dataArray[i] / 128.0; // 0..2, тишина ≈ 1
+        const y = (v * h) / 2;
+        const x = i * step;
+        if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+    draw();
+  } catch(e){
+    // волну показать не получилось (браузер не поддерживает Web Audio API) — запись всё равно продолжает работать
+  }
+}
+function stopWave(){
+  if(waveAnimFrame){ cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
+  if(waveAudioCtx){ waveAudioCtx.close().catch(()=>{}); waveAudioCtx = null; }
+  waveAnalyser = null;
+  const canvas = document.getElementById('micWave');
+  if(canvas){
+    canvas.style.display = 'none';
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
 async function toggleMic(){
   const btn = document.getElementById('micBtn');
   const hint = document.getElementById('micHint');
@@ -869,6 +921,7 @@ async function toggleMic(){
   mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) audioChunks.push(e.data); };
 
   mediaRecorder.onstop = async ()=>{
+    stopWave();
     if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
     recording = false;
     btn.classList.remove('recording');
@@ -907,10 +960,12 @@ async function toggleMic(){
   recording = true;
   btn.classList.add('recording');
   hint.textContent = 'слушаю... (нажми ещё раз, чтобы закончить)';
+  startWave(stream);
 }
 
 function stopMicVisual(){
   // используется при закрытии карточки позиции — отменяет запись/распознавание без сохранения текста
+  stopWave();
   if(mediaRecorder && mediaRecorder.state === 'recording'){
     mediaRecorder.onstop = null;
     mediaRecorder.stop();
