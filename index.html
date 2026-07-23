@@ -18,10 +18,26 @@
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
   html,body{margin:0; padding:0; background:var(--surface); color:var(--ink); font-family:var(--sans);}
   body{display:flex; justify-content:center;}
   #app{width:100%; max-width:480px; min-height:100vh; background:var(--surface); position:relative; display:flex; flex-direction:column;}
+
+  /* Широкая раскладка (iPad/компьютер) — включается через JS-класс body.wide,
+     то же самое определение "не телефон", что уже используется для камеры и QR.
+     На телефоне ничего из этого не действует вообще. */
+  body.wide{justify-content:flex-start;}
+  body.wide #app{max-width:640px; margin-left:max(16px, calc((100vw - 640px - 420px) / 2));}
+  body.wide .sheet-backdrop{display:none;} /* список остаётся видимым и кликабельным рядом с открытой панелью, затемнение не нужно */
+  #sheet.wide-panel{
+    left:auto; right:0; bottom:0; top:0; transform:translateX(100%);
+    width:420px; max-width:40vw; min-width:340px;
+    border-radius:0; height:100vh; max-height:100vh;
+    box-shadow:-8px 0 24px rgba(0,0,0,.12);
+    padding:20px 22px calc(20px + env(safe-area-inset-bottom));
+  }
+  #sheet.wide-panel.open{transform:translateX(0);}
+  #sheet.wide-panel .sheet-handle{display:none;}
 
   .topbar{
     background:var(--ink); color:var(--paper);
@@ -329,7 +345,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v55';
+const APP_VERSION = 'v56';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -886,6 +902,14 @@ function applyCameraRestriction(){
   if(sheetBtn) sheetBtn.style.display = 'none';
 }
 
+// На iPad/компьютере карточка позиции становится отдельной панелью справа, а не
+// шторкой, закрывающей весь экран снизу — список остаётся виден и кликабелен рядом.
+function applyWideLayout(){
+  if(isPhoneDevice()) return;
+  document.body.classList.add('wide');
+  document.getElementById('sheet').classList.add('wide-panel');
+}
+
 function driveImgUrl(url){
   if(!url) return url;
   if(url.startsWith('data:')) return url; // локальное, ещё не загруженное фото — это не ссылка, трогать нечего
@@ -1333,6 +1357,7 @@ async function init(){
   debugLog('init() старт');
   document.getElementById('versionBadge').textContent = APP_VERSION;
   applyCameraRestriction();
+  applyWideLayout();
   await updatePendingBadge();
 
   // Переход по QR-коду ("…/inventory/?p=030&n=5") — приоритетнее обычного
