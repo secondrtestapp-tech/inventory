@@ -329,10 +329,10 @@
 
   <div class="confirm-overlay" id="confirmOverlay">
     <div class="confirm-card">
-      <p>Удалить эту позицию?</p>
+      <p id="confirmText">Удалить эту позицию?</p>
       <div class="confirm-actions">
         <button class="btn-secondary" onclick="closeConfirm()">Отмена</button>
-        <button class="btn-danger" onclick="confirmDelete()">Удалить</button>
+        <button class="btn-danger" onclick="runConfirmedAction()">Удалить</button>
       </div>
     </div>
   </div>
@@ -363,7 +363,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v63';
+const APP_VERSION = 'v64';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -740,7 +740,7 @@ function positionsSignature(posArr){
 }
 
 async function backgroundSync(){
-  if(backgroundSyncing || recording || syncingPack || savingPosition) return; // не мешаем себе, если уже что-то синхронизируется, идёт запись голоса или сохранение позиции
+  if(backgroundSyncing || recording || syncingPack) return; // не мешаем себе, если уже что-то синхронизируется или идёт запись голоса
   if(!currentPackNum) return;
   backgroundSyncing = true;
   try{
@@ -748,7 +748,6 @@ async function backgroundSync(){
     const fresh = await syncFromServer(packAtStart);
     if(!fresh) return; // сеть подвела — тихо пробуем в следующий раз
     if(packAtStart !== currentPackNum) return; // пока шёл запрос, человек уже переключился на другую пачку
-    if(savingPosition) return; // пока шёл запрос, успела открыться карточка позиции — не трогаем
 
     const mergedPositions = fresh.positions.map(fp => {
       if(locallyPhotographedPositions.has(currentPackNum + ':' + fp.num)){
@@ -773,8 +772,39 @@ async function backgroundSync(){
     await mergePendingIntoCurrentPack();
     renderPackPhotos();
     render();
+    refreshOpenSheetIfUntouched(); // открытую карточку тоже тихо освежаем, если это безопасно
   } finally {
     backgroundSyncing = false;
+  }
+}
+
+// Если сейчас открыта карточка позиции — обновляет то, что на ней видно, свежими
+// данными. Текст и количество — только если их не трогали (сверяем со снимком,
+// который сделали при открытии), иначе можно затереть то, что человек ещё печатает.
+// Фото — обновляем всегда, кроме случая, когда в этой самой карточке есть местные,
+// ещё не подтверждённые сервером снимки (актуально для телефона, где есть камера —
+// на iPad, где камеры в карточке нет вообще, это условие просто никогда не сработает).
+function refreshOpenSheetIfUntouched(){
+  const sheetEl = document.getElementById('sheet');
+  if(!sheetEl.classList.contains('open') || editingId === null || !sheetOriginalSnapshot) return;
+  const num = parseInt(document.getElementById('sheetNum').textContent);
+  const p = positions.find(x => x.num === num);
+  if(!p) return;
+
+  const text = document.getElementById('posText').value.trim();
+  const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
+  const textUnchanged = text === sheetOriginalSnapshot.text && qty === sheetOriginalSnapshot.qty;
+  if(textUnchanged){
+    document.getElementById('posText').value = p.text || '';
+    document.getElementById('qtyInput').value = p.qty || 1;
+    sheetOriginalSnapshot.text = p.text || '';
+    sheetOriginalSnapshot.qty = p.qty || 1;
+  }
+
+  if(!locallyPhotographedPositions.has(currentPackNum + ':' + num)){
+    sheetPhotos = [...p.photos];
+    sheetOriginalSnapshot.photos = JSON.stringify(p.photos || []);
+    renderSheetPhotos();
   }
 }
 
@@ -978,6 +1008,18 @@ async function addPackPhoto(e){
   e.target.value = '';
   sendPackPhotoToServer(currentPackNum, url, packPhotosArr.length);
 }
+function askRemovePackPhoto(url){
+  document.getElementById('confirmText').textContent = 'Удалить это фото?';
+  pendingConfirmAction = () => {
+    const i = packPhotosArr.indexOf(url);
+    if(i>-1) packPhotosArr.splice(i,1);
+    renderPackPhotos();
+    fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify({ type:'pack_photo_remove', pack: currentPackNum, url: url }) })
+      .catch(()=>{}); // не критично, если не пройдёт с первого раза — при следующей чистке будет видно на сервере
+  };
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
 function renderPackPhotos(){
   const container = document.getElementById('packPhotos');
   container.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
@@ -988,7 +1030,7 @@ function renderPackPhotos(){
     img.className='thumb'; img.src=driveImgUrl(url); img.onclick=()=>openLightbox(url);
     const del = document.createElement('button');
     del.className='thumb-del'; del.textContent='×';
-    del.onclick=(ev)=>{ev.stopPropagation(); const i=packPhotosArr.indexOf(url); if(i>-1) packPhotosArr.splice(i,1); renderPackPhotos();};
+    del.onclick=(ev)=>{ ev.stopPropagation(); askRemovePackPhoto(url); };
     wrap.appendChild(img); wrap.appendChild(del);
     container.appendChild(wrap); // кнопка камеры зашита первой в разметке и никогда не двигается — новые фото просто дописываются после неё
   });
@@ -1293,6 +1335,12 @@ async function addSheetPhoto(e){
   renderSheetPhotos();
   e.target.value = '';
 }
+function askRemoveSheetPhoto(idx, ev){
+  if(ev) ev.stopPropagation();
+  document.getElementById('confirmText').textContent = 'Удалить это фото?';
+  pendingConfirmAction = () => { sheetPhotos.splice(idx,1); renderSheetPhotos(); };
+  document.getElementById('confirmOverlay').classList.add('open');
+}
 function removeSheetPhoto(idx){
   sheetPhotos.splice(idx,1);
   renderSheetPhotos();
@@ -1303,7 +1351,7 @@ function renderSheetPhotos(){
   sheetPhotos.forEach((url,idx)=>{
     const wrap = document.createElement('div');
     wrap.className = 'thumb-wrap';
-    wrap.innerHTML = `<img class="sheet-photo-thumb" src="${driveImgUrl(url)}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="event.stopPropagation(); removeSheetPhoto(${idx})">×</button>`;
+    wrap.innerHTML = `<img class="sheet-photo-thumb" src="${driveImgUrl(url)}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="askRemoveSheetPhoto(${idx}, event)">×</button>`;
     row.appendChild(wrap); // кнопка камеры зашита первой в разметке и никогда не двигается
   });
 }
@@ -1373,6 +1421,14 @@ function saveSheet(){
 }
 
 let pendingDeleteId = null;
+let pendingConfirmAction = null; // общее окно подтверждения — что именно выполнить по нажатию "Удалить"
+
+function runConfirmedAction(){
+  document.getElementById('confirmOverlay').classList.remove('open');
+  const action = pendingConfirmAction;
+  pendingConfirmAction = null;
+  if(action) action();
+}
 let pendingDeleteNum = null; // номер позиции — на случай удаления из открытой карточки, id к этому моменту может быть неактуален
 let pendingDeleteFromSheet = false;
 
@@ -1380,12 +1436,16 @@ function askDeletePosition(id, ev){
   if(ev) ev.stopPropagation();
   pendingDeleteId = id;
   pendingDeleteFromSheet = false;
+  document.getElementById('confirmText').textContent = 'Удалить эту позицию?';
+  pendingConfirmAction = confirmDelete;
   document.getElementById('confirmOverlay').classList.add('open');
 }
 function askDeleteFromSheet(){
   pendingDeleteId = editingId;
   pendingDeleteNum = parseInt(document.getElementById('sheetNum').textContent);
   pendingDeleteFromSheet = true;
+  document.getElementById('confirmText').textContent = 'Удалить эту позицию?';
+  pendingConfirmAction = confirmDelete;
   document.getElementById('confirmOverlay').classList.add('open');
 }
 function closeConfirm(){
