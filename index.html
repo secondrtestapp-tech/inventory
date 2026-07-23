@@ -311,7 +311,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v25';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -697,6 +697,18 @@ function fileToDataUrl(file){
   });
 }
 
+// Ссылка, которую отдаёт Google Drive (file.getUrl()) и которая лежит в Таблице —
+// это адрес страницы просмотра, а не самой картинки, поэтому <img src="..."> с ней
+// не отрисовывается (браузер просто не видит там изображение). Для показа внутри
+// приложения нужен отдельный "прямой" адрес именно байтов картинки. Локальные data:-фото
+// (только что снятые, ещё не отправленные на сервер) эта функция не трогает — вернёт как есть.
+function driveImgUrl(url){
+  if(!url) return url;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(!m) return url;
+  return 'https://lh3.googleusercontent.com/d/' + m[1] + '=w1000';
+}
+
 async function addPackPhoto(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -714,7 +726,7 @@ function renderPackPhotos(){
     const wrap = document.createElement('div');
     wrap.className = 'thumb-wrap';
     const img = document.createElement('img');
-    img.className='thumb'; img.src=url; img.onclick=()=>openLightbox(url);
+    img.className='thumb'; img.src=driveImgUrl(url); img.onclick=()=>openLightbox(url);
     const del = document.createElement('button');
     del.className='thumb-del'; del.textContent='×';
     del.onclick=(ev)=>{ev.stopPropagation(); const i=packPhotosArr.indexOf(url); if(i>-1) packPhotosArr.splice(i,1); renderPackPhotos();};
@@ -881,7 +893,7 @@ function renderSheetPhotos(){
   sheetPhotos.forEach((url,idx)=>{
     const wrap = document.createElement('div');
     wrap.className = 'thumb-wrap';
-    wrap.innerHTML = `<img class="sheet-photo-thumb" src="${url}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="event.stopPropagation(); removeSheetPhoto(${idx})">×</button>`;
+    wrap.innerHTML = `<img class="sheet-photo-thumb" src="${driveImgUrl(url)}" onclick="openLightbox('${url}')"><button class="thumb-del" onclick="event.stopPropagation(); removeSheetPhoto(${idx})">×</button>`;
     row.appendChild(wrap);
   });
 }
@@ -940,7 +952,7 @@ function confirmDelete(){
 
 function openLightbox(url, ev){
   if(ev) ev.stopPropagation();
-  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxImg').src = driveImgUrl(url);
   document.getElementById('lightbox').classList.add('open');
 }
 function closeLightbox(ev){
@@ -966,7 +978,7 @@ function render(){
       card.onclick = ()=>openSheetEdit(p.id);
       const maxShown = 3;
       const photosArr = Array.isArray(p.photos) ? p.photos : [];
-      const shown = photosArr.slice(0,maxShown).map(url=>`<img src="${url}" onclick="openLightbox('${url}', event)">`).join('');
+      const shown = photosArr.slice(0,maxShown).map(url=>`<img src="${driveImgUrl(url)}" onclick="openLightbox('${url}', event)">`).join('');
       const more = photosArr.length > maxShown ? `<div class="more">+${photosArr.length - maxShown}</div>` : '';
       card.innerHTML = `
         <div class="pos-num">${p.num}</div>
