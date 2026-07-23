@@ -193,7 +193,7 @@
 </style>
 </head>
 <body>
-<div style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;">v22</div>
+<div id="versionBadge" style="position:fixed; top:8px; right:8px; background:#111; color:#39FF14; font-family:monospace; font-size:11px; padding:3px 9px; border-radius:6px; z-index:100; opacity:.85;"></div>
 <div id="app">
 
   <div class="topbar">
@@ -311,6 +311,7 @@
 </div>
 
 <script>
+const APP_VERSION = 'v23';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -982,6 +983,7 @@ function render(){
 
 async function init(){
   debugLog('init() старт');
+  document.getElementById('versionBadge').textContent = APP_VERSION;
   // Заглушка "030" по умолчанию не содержит настоящих данных — синхронизировать её незачем.
   // Реальная загрузка данных пачки происходит в switchToPack(), когда пользователь
   // явно выбирает пачку. Отдельный сетевой запрос здесь раньше мог "гоняться наперегонки"
