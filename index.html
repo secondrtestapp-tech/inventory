@@ -109,13 +109,14 @@
      указывающую в сторону открытой панели. На iPhone список и карточка никогда не
      видны вместе, поэтому там это не нужно и не подключается. */
   body.wide .position-card.active{
-    box-shadow:0 6px 18px rgba(0,0,0,.14);
-    padding:17px 14px 17px 16px;
+    box-shadow:0 10px 28px rgba(0,0,0,.24);
+    border-color:var(--ink);
+    padding:19px 16px 19px 18px;
   }
   body.wide .position-card.active::after{
-    content:''; position:absolute; right:-9px; top:50%; transform:translateY(-50%);
-    width:0; height:0; border-top:8px solid transparent; border-bottom:8px solid transparent;
-    border-left:9px solid var(--ink);
+    content:''; position:absolute; right:-24px; top:50%; transform:translateY(-50%);
+    width:0; height:0; border-top:12px solid transparent; border-bottom:12px solid transparent;
+    border-left:14px solid var(--ink);
   }
   .pos-num{
     font-family:var(--mono); font-weight:700; font-size:14px; color:var(--paper); background:var(--steel);
@@ -362,7 +363,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v60';
+const APP_VERSION = 'v61';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -728,6 +729,15 @@ let savingPosition = false; // идёт ли прямо сейчас отпра�
 // в поле "название", читается из positions[] только в момент открытия карточки, а не
 // обновляется на лету — так что фоновое обновление списка физически не может затереть
 // несохранённый текст.
+// Сравнение "по содержимому", не по служебному id (он у каждой позиции пересоздаётся
+// заново при каждой синхронизации) — используется, чтобы понять, реально ли что-то
+// изменилось, и не перерисовывать список без нужды.
+function positionsSignature(posArr){
+  return JSON.stringify(
+    posArr.slice().sort((a,b)=>a.num-b.num).map(p=>({num:p.num, text:p.text, qty:p.qty, photos:p.photos, audio:p.audio}))
+  );
+}
+
 async function backgroundSync(){
   if(backgroundSyncing || recording || syncingPack || savingPosition) return; // не мешаем себе, если уже что-то синхронизируется, идёт запись голоса или сохранение позиции
   if(!currentPackNum) return;
@@ -739,14 +749,25 @@ async function backgroundSync(){
     if(packAtStart !== currentPackNum) return; // пока шёл запрос, человек уже переключился на другую пачку
     if(savingPosition) return; // пока шёл запрос, успела открыться карточка позиции — не трогаем
 
-    positions = fresh.positions.map(fp => {
+    const mergedPositions = fresh.positions.map(fp => {
       if(locallyPhotographedPositions.has(currentPackNum + ':' + fp.num)){
         const existing = positions.find(p => p.num === fp.num);
         if(existing) return { ...fp, photos: existing.photos };
       }
       return fp;
     });
-    packPhotosArr = locallyPhotographedPacks.has(currentPackNum) ? packPhotosArr : fresh.packPhotos;
+    const mergedPackPhotos = locallyPhotographedPacks.has(currentPackNum) ? packPhotosArr : fresh.packPhotos;
+
+    // Сверяем со всем, что уже показано на экране — если реально ничего не поменялось
+    // (никто не работал параллельно с другого устройства), молча выходим, не трогая
+    // список: раньше список перестраивался на каждом цикле безусловно, отсюда было
+    // заметное постоянное подёргивание экрана каждые 10-15 секунд без всякой причины.
+    const changed = positionsSignature(mergedPositions) !== positionsSignature(positions) ||
+                     JSON.stringify(mergedPackPhotos) !== JSON.stringify(packPhotosArr);
+    if(!changed) return;
+
+    positions = mergedPositions;
+    packPhotosArr = mergedPackPhotos;
     posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
     await mergePendingIntoCurrentPack();
     renderPackPhotos();
@@ -1406,10 +1427,11 @@ function render(){
     loadingHint.style.display = 'none';
   }
   const sheetIsOpen = document.getElementById('sheet').classList.contains('open');
+  const activeNum = sheetIsOpen ? parseInt(document.getElementById('sheetNum').textContent) : null;
   positions.slice().sort((a,b)=> sortAscending ? a.num-b.num : b.num-a.num).forEach(p=>{
     try{
       const card = document.createElement('div');
-      card.className = 'position-card' + (sheetIsOpen && editingId === p.id ? ' active' : '');
+      card.className = 'position-card' + (activeNum !== null && p.num === activeNum ? ' active' : '');
       card.onclick = ()=>openSheetEdit(p.id);
       const maxShown = 3;
       const photosArr = Array.isArray(p.photos) ? p.photos : [];
