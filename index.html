@@ -131,6 +131,9 @@
 
   .mic-btn{width:28px; height:28px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; position:absolute; right:10px; bottom:10px; z-index:2; box-shadow:0 1px 4px rgba(0,0,0,.15);}
   .mic-btn svg{width:13px; height:13px;}
+  .mic-btn .check-icon{display:none;}
+  .mic-btn.recording .mic-icon{display:none;}
+  .mic-btn.recording .check-icon{display:block;}
   .mic-btn.recording{background:var(--danger); animation:pulse 1.1s infinite;}
   .mic-btn.processing{background:var(--accent-dark); opacity:.7;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
@@ -249,7 +252,8 @@
       <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
       <canvas id="micWave" width="300" height="64" style="display:none;"></canvas>
       <button class="mic-btn" id="micBtn" onclick="toggleMic()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       </button>
     </div>
 
@@ -319,7 +323,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v39';
+const APP_VERSION = 'v40';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -877,6 +881,7 @@ function startWave(stream){
     const slot = barWidth + gap;
     const capacity = Math.ceil(canvas.width / slot);
     const history = new Array(capacity).fill(0); // копим последние замеры громкости — это и есть "лента"
+    let frameCount = 0;
 
     const draw = () => {
       waveAnimFrame = requestAnimationFrame(draw);
@@ -887,8 +892,11 @@ function startWave(stream){
       for(let i=0; i<usable; i++) sum += freqData[i];
       const level = usable ? (sum / usable) / 255 : 0; // 0..1
 
-      history.push(level);
-      history.shift(); // старый замер уходит слева, новый добавляется справа — отсюда эффект бегущей ленты
+      frameCount++;
+      if(frameCount % 2 === 0){ // сдвигаем ленту раз в два кадра — вдвое медленнее, чем раньше (каждый кадр)
+        history.push(level);
+        history.shift(); // старый замер уходит слева, новый добавляется справа — отсюда эффект бегущей ленты
+      }
 
       const w = canvas.width, h = canvas.height;
       ctx.clearRect(0, 0, w, h);
