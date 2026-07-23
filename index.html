@@ -321,7 +321,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v35';
+const APP_VERSION = 'v36';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -335,6 +335,8 @@ let waveAudioCtx = null;
 let waveAnalyser = null;
 let waveAnimFrame = null;
 let sheetAudioDataUrl = null; // база64 последней записанной (и распознанной) аудиозаписи текущей позиции — уходит в Таблицу при сохранении
+const locallyPhotographedPositions = new Set(); // ключи "пачка:номер_позиции" — сфотографированы в этой сессии, сервер их фото не подменяет
+const locallyPhotographedPacks = new Set(); // номера пачек — то же самое для общих фото пачки
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
@@ -663,8 +665,17 @@ async function switchToPack(rawNum){
   render();
 
   const applyFresh = async (fresh) => {
-    positions = fresh.positions;
-    packPhotosArr = fresh.packPhotos;
+    // Фото, снятые локально в этой сессии, не заменяем "свежими" с сервера — Google Диск
+    // не всегда сразу готов отдавать только что загруженный файл, а показанная нами картинка
+    // и так уже верная и лежит прямо в браузере. Трогаем только текст/количество из fresh.
+    positions = fresh.positions.map(fp => {
+      if(locallyPhotographedPositions.has(currentPackNum + ':' + fp.num)){
+        const existing = positions.find(p => p.num === fp.num);
+        if(existing) return { ...fp, photos: existing.photos };
+      }
+      return fp;
+    });
+    packPhotosArr = locallyPhotographedPacks.has(currentPackNum) ? packPhotosArr : fresh.packPhotos;
     posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
     await mergePendingIntoCurrentPack();
     renderPackPhotos();
@@ -771,6 +782,7 @@ async function addPackPhoto(e){
   if(!file) return;
   const url = await fileToDataUrl(file);
   packPhotosArr.push(url);
+  locallyPhotographedPacks.add(currentPackNum);
   renderPackPhotos();
   e.target.value = '';
   sendPackPhotoToServer(currentPackNum, url, packPhotosArr.length);
@@ -1023,6 +1035,9 @@ function saveSheet(){
   const text = document.getElementById('posText').value.trim();
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
   const num = parseInt(document.getElementById('sheetNum').textContent);
+  if(sheetPhotos.some(url => url.startsWith('data:'))){
+    locallyPhotographedPositions.add(currentPackNum + ':' + num);
+  }
   let savedObj;
   if(editingId===null){
     savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], audio: sheetAudioDataUrl };
