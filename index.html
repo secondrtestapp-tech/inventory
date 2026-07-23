@@ -129,6 +129,7 @@
   .mic-btn{width:40px; height:40px; border-radius:50%; border:none; background:var(--steel); color:var(--paper); display:flex; align-items:center; justify-content:center; transition:.15s; flex:none;}
   .mic-btn svg{width:18px; height:18px;}
   .mic-btn.recording{background:var(--danger); animation:pulse 1.1s infinite;}
+  .mic-btn.processing{background:var(--accent-dark); opacity:.7;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,61,61,.5)} 70%{box-shadow:0 0 0 10px rgba(196,61,61,0)} 100%{box-shadow:0 0 0 0 rgba(196,61,61,0)}}
   .mic-hint{font-size:11px; color:var(--ink-soft); margin:-10px 0 14px 2px;}
 
@@ -227,7 +228,7 @@
     <div class="empty-hint" id="emptyHint">Пока пусто. Нажми «+» внизу, чтобы добавить первую позицию.</div>
   </div>
 
-  <div class="note">Прототип: голос имитирован (по нажатию на микрофон подставляется пример текста). Камера — рабочая. Тап по фото открывает его на весь экран. Тап по позиции — открывает её для просмотра/редактирования.</div>
+  <div class="note">Голос распознаётся по-настоящему (OpenAI): нажми микрофон, скажи — нажми ещё раз, чтобы закончить и распознать. Камера — рабочая. Тап по фото открывает его на весь экран. Тап по позиции — открывает её для просмотра/редактирования.</div>
 
   <div class="fab"><button onclick="openSheetNew()">+</button></div>
 
@@ -316,6 +317,9 @@ let nextId = 1;
 let editingId = null;
 let sheetPhotos = [];
 let recording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let micStream = null;
 let sortAscending = false;
 let packs = {};
 let currentPackNum = '030';
@@ -762,28 +766,95 @@ function changeQty(delta){
   inp.value = v;
 }
 
-function toggleMic(){
+async function toggleMic(){
   const btn = document.getElementById('micBtn');
   const hint = document.getElementById('micHint');
-  if(!recording){
-    recording = true;
-    btn.classList.add('recording');
-    hint.textContent = 'слушаю...';
-    setTimeout(()=>{
-      if(!recording) return;
-      const ta = document.getElementById('posText');
-      const samples = ['опора конвейера, 1.5 м','кронштейн, деталь номер '+ (posCounter+25),'кабель управления, 5 м','ролик приводной, б/у'];
-      ta.value = samples[Math.floor(Math.random()*samples.length)];
-      stopMicVisual();
-    }, 1400);
-  } else {
-    stopMicVisual();
+
+  if(btn.classList.contains('processing')) return; // идёт распознавание — игнорируем тап
+
+  if(recording){
+    // второй тап — заканчиваем запись, дальше всё происходит в mediaRecorder.onstop
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    return;
   }
+
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e){
+    showToast('Нет доступа к микрофону: ' + e.message);
+    return;
+  }
+  micStream = stream;
+
+  const preferredType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+                       : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+                       : '';
+  audioChunks = [];
+  try{
+    mediaRecorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
+  } catch(e){
+    showToast('Запись голоса не поддерживается этим браузером: ' + e.message);
+    stream.getTracks().forEach(t=>t.stop());
+    micStream = null;
+    return;
+  }
+
+  mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) audioChunks.push(e.data); };
+
+  mediaRecorder.onstop = async ()=>{
+    if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
+    recording = false;
+    btn.classList.remove('recording');
+
+    if(!audioChunks.length){
+      hint.textContent = 'нажми и скажи, что кладёшь';
+      return;
+    }
+
+    btn.classList.add('processing');
+    hint.textContent = 'распознаю...';
+
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const dataUrl = await fileToDataUrl(blob);
+
+    const result = await sendToServer({ type:'transcribe', audio: dataUrl });
+
+    btn.classList.remove('processing');
+    hint.textContent = 'нажми и скажи, что кладёшь';
+
+    if(result.ok && result.data && typeof result.data.text === 'string'){
+      const recognized = result.data.text.trim();
+      if(recognized){
+        const ta = document.getElementById('posText');
+        ta.value = ta.value.trim() ? (ta.value.trim() + ', ' + recognized) : recognized;
+        onPosTextInput();
+      } else {
+        showToast('Распознавание вернуло пустой текст');
+      }
+    } else {
+      showToast('Не удалось распознать: ' + (result.error || 'ошибка'));
+    }
+  };
+
+  mediaRecorder.start();
+  recording = true;
+  btn.classList.add('recording');
+  hint.textContent = 'слушаю... (нажми ещё раз, чтобы закончить)';
 }
+
 function stopMicVisual(){
+  // используется при закрытии карточки позиции — отменяет запись/распознавание без сохранения текста
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.onstop = null;
+    mediaRecorder.stop();
+  }
+  if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
   recording = false;
-  document.getElementById('micBtn').classList.remove('recording');
-  document.getElementById('micHint').textContent = 'нажми и скажи, что кладёшь';
+  const btn = document.getElementById('micBtn');
+  if(btn){ btn.classList.remove('recording'); btn.classList.remove('processing'); }
+  const hint = document.getElementById('micHint');
+  if(hint) hint.textContent = 'нажми и скажи, что кладёшь';
 }
 
 async function addSheetPhoto(e){
