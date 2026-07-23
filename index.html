@@ -311,7 +311,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v23';
+const APP_VERSION = 'v24';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -662,7 +662,12 @@ async function openPackList(){
   } catch(e){
     // офлайн — остаёмся с тем, что знаем локально
   }
-  counts[currentPackNum] = positions.length;
+  // Не затираем точный счёт с сервера локальным состоянием текущей пачки —
+  // только подстраховываемся на случай ещё не отправленных (pending) позиций,
+  // которых сервер пока не видит. Раньше здесь было безусловное присваивание,
+  // из-за чего пачка "030" по умолчанию (не подгруженная с сервера на старте)
+  // показывала 0 позиций, даже если в Таблице их было три.
+  counts[currentPackNum] = Math.max(counts[currentPackNum] || 0, positions.length);
 
   container.innerHTML = '';
   const nums = Object.keys(counts).sort((a,b)=>{
