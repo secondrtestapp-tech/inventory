@@ -363,7 +363,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v64';
+const APP_VERSION = 'v65';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -1460,6 +1460,13 @@ function confirmDelete(){
   pendingDeleteId = null;
   pendingDeleteNum = null;
   if(id==null) return;
+
+  // Запоминаем номер удаляемой позиции ДО того, как уберём её из массива — он
+  // нужен, чтобы сообщить об удалении серверу (раньше такого запроса не было
+  // вообще — позиция пропадала только локально в браузере и возвращалась обратно
+  // при следующей синхронизации, потому что в Таблице строка оставалась на месте).
+  const target = fromSheet ? positions.find(x=>x.num===num) : positions.find(x=>x.id===id);
+
   positions = fromSheet ? positions.filter(x=>x.num!==num) : positions.filter(x=>x.id!==id);
   if(fromSheet){
     saveViewState(null);
@@ -1468,6 +1475,16 @@ function confirmDelete(){
     document.getElementById('sheet').classList.remove('open');
   }
   render();
+
+  if(target){
+    const payload = { type:'delete_position', pack: currentPackNum, posNum: target.num };
+    sendToServer(payload).then(result => {
+      if(!result.ok){
+        logErrorToServer(currentPackNum, target.num, 'удаление позиции', result.error);
+        queuePending(payload); // не прошло сейчас — та же надёжная очередь, что и для сохранений, попробует снова сама
+      }
+    });
+  }
 }
 
 function openLightbox(url, ev){
