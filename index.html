@@ -332,7 +332,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v48';
+const APP_VERSION = 'v49';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -544,7 +544,10 @@ async function sendPositionToServer(packNum, posObj){
   };
   const result = await sendToServer(payload);
   if(result.ok){
-    showToast('Сохранено в Google');
+    const sentCount = payload.photos.length;
+    const savedCount = (result.data && Array.isArray(result.data.photoUrls)) ? result.data.photoUrls.length : null;
+    const photoNote = sentCount ? ` (фото: отправлено ${sentCount}${savedCount !== null ? ', сервер сохранил ' + savedCount : ''})` : '';
+    showToast('Сохранено в Google' + photoNote);
     if(posObj.text && !knownTexts.includes(posObj.text)) knownTexts.push(posObj.text);
     delete posObj.pending;
     render();
