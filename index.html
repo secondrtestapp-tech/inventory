@@ -324,7 +324,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v42';
+const APP_VERSION = 'v43';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -903,13 +903,13 @@ function startWave(stream){
       for(let i=0; i<usable; i++) sum += freqData[i];
       const rawLevel = usable ? (sum / usable) / 255 : 0; // 0..1
 
-      // Ниже этого порога считаем, что это фоновый шум/тишина между словами — сводим почти в точку.
-      // Выше порога — растягиваем оставшийся диапазон на всю высоту, чтобы звук был явно контрастнее тишины,
-      // без плавного перехода "чуть-чуть выше нуля".
-      const noiseFloor = 0.1;
+      // Ниже этого порога — фоновый шум/тишина между словами, сводим в точку. Выше порога
+      // НЕ растягиваем на всю высоту (раньше это стирало промежуточные значения и превращало
+      // всё в "или точка, или максимум") — просто вычитаем порог, сохраняя естественный разброс громкости.
+      const noiseFloor = 0.07;
       let level = 0;
       if(rawLevel > noiseFloor){
-        level = Math.min(1, (rawLevel - noiseFloor) / (1 - noiseFloor));
+        level = Math.min(1, rawLevel - noiseFloor);
       }
 
       frameCount++;
