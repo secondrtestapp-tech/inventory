@@ -363,7 +363,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v65';
+const APP_VERSION = 'v66';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -930,8 +930,8 @@ async function openPackList(){
   container.innerHTML = '';
   const nums = Object.keys(counts).sort((a,b)=>{
     const na = parseInt(a), nb = parseInt(b);
-    if(!isNaN(na) && !isNaN(nb)) return nb - na;
-    return b.localeCompare(a);
+    if(!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
   });
   nums.forEach(num=>{
     const btn = document.createElement('button');
