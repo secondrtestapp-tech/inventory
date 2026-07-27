@@ -208,6 +208,9 @@
   .comment-wrap textarea{width:100%; min-height:64px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 56px 10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
   .mic-btn-small{bottom:auto; top:10px;}
   .pack-comment-pad{padding:0 18px; margin-top:8px;}
+  .field-card{border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow:hidden;}
+  .field-card textarea{border:none; border-radius:0; background:transparent;}
+  .field-card .notes-row-inline{margin:0; padding:10px 12px 12px; border-top:1px solid var(--line);}
   .notes-row-inline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
   .notes-clips-scroll{max-height:180px; overflow-y:auto;}
 
@@ -290,12 +293,14 @@
 
   <div class="pack-comment-pad">
     <button class="comment-toggle" id="packCommentToggle" onclick="togglePackComment()">+ комментарий к пачке</button>
-    <div class="textarea-wrap comment-wrap" id="packCommentWrap" style="display:none;">
-      <textarea id="packCommentText" placeholder="Необязательный комментарий к пачке" rows="2" onblur="savePackComment()"></textarea>
-      <button class="mic-btn mic-btn-small" id="packCommentMicBtn" onclick="togglePackMic('comment')">
-        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
+    <div class="field-card" id="packCommentWrap" style="display:none;">
+      <div class="textarea-wrap comment-wrap">
+        <textarea id="packCommentText" placeholder="Необязательный комментарий к пачке" rows="2" onblur="savePackComment()"></textarea>
+        <button class="mic-btn mic-btn-small" id="packCommentMicBtn" onclick="togglePackMic('comment')">
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
 
       <div class="notes-row-inline">
         <button class="note-add-btn" id="packNoteAddBtn" onclick="togglePackMic('note')">
@@ -330,22 +335,24 @@
       </div>
     </div>
 
-    <div class="textarea-wrap">
-      <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
-      <textarea id="commentText" placeholder="Необязательный комментарий" style="display:none;"></textarea>
-      <canvas id="micWave" width="195" height="56" style="display:none;"></canvas>
-      <button class="mic-btn" id="micBtn" onclick="toggleMic(activeFieldTab)">
-        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
-    </div>
+    <div class="field-card">
+      <div class="textarea-wrap">
+        <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
+        <textarea id="commentText" placeholder="Необязательный комментарий" style="display:none;"></textarea>
+        <canvas id="micWave" width="195" height="56" style="display:none;"></canvas>
+        <button class="mic-btn" id="micBtn" onclick="toggleMic(activeFieldTab)">
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
 
-    <div class="notes-row-inline" id="sheetNotesSection" style="display:none;">
-      <button class="note-add-btn" id="noteAddBtn" onclick="toggleMic('note')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-        <span>наговорить заметку</span>
-      </button>
-      <div class="notes-clips notes-clips-scroll" id="sheetNotesClips"></div>
+      <div class="notes-row-inline" id="sheetNotesSection" style="display:none;">
+        <button class="note-add-btn" id="noteAddBtn" onclick="toggleMic('note')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          <span>наговорить заметку</span>
+        </button>
+        <div class="notes-clips notes-clips-scroll" id="sheetNotesClips"></div>
+      </div>
     </div>
 
     <div class="suggest-box" id="suggestBox"></div>
@@ -418,7 +425,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v69';
+const APP_VERSION = 'v70';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -1153,19 +1160,6 @@ function driveImgUrl(url){
   return 'https://lh3.googleusercontent.com/d/' + m[1] + '=w1000';
 }
 
-// То же самое, что driveImgUrl, только для звука — превращает обычную ссылку на файл
-// Диска в прямую, которую браузер может проиграть сразу через <audio>, без перехода
-// на отдельную страницу. Раньше уже сохранённые заметки открывались отдельной
-// вкладкой — надёжно, но неодинаково со свежезаписанными, которые проигрываются
-// прямо на месте.
-function driveAudioUrl(url){
-  if(!url) return url;
-  if(url.startsWith('data:')) return url; // локальный, ещё не отправленный клип
-  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if(!m) return url;
-  return 'https://drive.google.com/uc?export=download&id=' + m[1];
-}
-
 async function addPackPhoto(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -1230,9 +1224,17 @@ function renderPackNotes(){
     const card = document.createElement('div');
     card.className = 'note-clip';
     const isLocal = url.startsWith('data:');
-    const player = document.createElement('audio');
-    player.controls = true;
-    player.src = isLocal ? url : driveAudioUrl(url);
+    const player = document.createElement(isLocal ? 'audio' : 'a');
+    if(isLocal){
+      player.controls = true;
+      player.src = url;
+    } else {
+      player.className = 'note-clip-link';
+      player.href = url;
+      player.target = '_blank';
+      player.rel = 'noopener';
+      player.textContent = '▶ заметка ' + (idx + 1);
+    }
     card.appendChild(player);
     container.appendChild(card);
   });
@@ -1729,9 +1731,21 @@ function renderSheetNotes(){
     const card = document.createElement('div');
     card.className = 'note-clip';
     const isLocal = clip.url.startsWith('data:');
-    const player = document.createElement('audio');
-    player.controls = true;
-    player.src = isLocal ? clip.url : driveAudioUrl(clip.url);
+    // Google с 2024 года блокирует встраивание файлов с Диска в плеер на чужих сайтах —
+    // играть на месте может только свежая, ещё не отправленная запись (это локальный
+    // файл в браузере). Уже сохранённую — только открыть отдельно, плеер для нёе
+    // технически не может работать никогда, при любом виде ссылки.
+    const player = document.createElement(isLocal ? 'audio' : 'a');
+    if(isLocal){
+      player.controls = true;
+      player.src = clip.url;
+    } else {
+      player.className = 'note-clip-link';
+      player.href = clip.url;
+      player.target = '_blank';
+      player.rel = 'noopener';
+      player.textContent = '▶ заметка ' + (idx + 1);
+    }
     card.appendChild(player);
     const del = document.createElement('button');
     del.className = 'thumb-del';
