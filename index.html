@@ -425,7 +425,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v70';
+const APP_VERSION = 'v71';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -1789,9 +1789,10 @@ function persistCurrentSheetData(){
   if(sheetPhotos.some(url => url.startsWith('data:'))){
     locallyPhotographedPositions.add(currentPackNum + ':' + num);
   }
+  const audioUrls = sheetAudioClips.map(c => c.url); // то самое поле, которое читает openSheetEdit при повторном открытии
   let savedObj;
   if(editingId===null){
-    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], comment: comment || null, audioClips:[...sheetAudioClips] };
+    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], comment: comment || null, audioClips:[...sheetAudioClips], audioLinks: audioUrls };
     positions.push(savedObj);
   } else {
     // По видимому номеру позиции, а не по служебному id — id пересоздаётся заново при
@@ -1799,7 +1800,7 @@ function persistCurrentSheetData(){
     // была открыта, старый id уже никого не находит, и сохранение молча проваливается.
     // Номер позиции ("Позиция №1") — единственное, что в любом случае остаётся неизменным.
     const p = positions.find(x=>x.num===num);
-    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.comment = comment || null; p.audioClips = [...sheetAudioClips]; savedObj = p; }
+    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.comment = comment || null; p.audioClips = [...sheetAudioClips]; p.audioLinks = audioUrls; savedObj = p; }
   }
   return savedObj;
 }
