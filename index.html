@@ -159,6 +159,9 @@
   .sheet.open{transform:translate(-50%, 0);}
   .sheet-handle{width:36px; height:4px; background:var(--line); border-radius:2px; margin:6px auto 8px;}
   .sheet-title{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .field-tabs{display:flex; gap:4px; background:var(--surface); border-radius:8px; padding:3px; flex:none;}
+  .field-tab{padding:6px 12px; border:none; border-radius:6px; background:none; color:var(--ink-soft); font-size:13px; font-weight:600;}
+  .field-tab.active{background:var(--paper); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1);}
   .sheet-title .pos-num{width:30px; height:30px; font-size:13px;}
   .sheet-title h3{margin:0; font-size:15px; color:var(--ink-soft); font-weight:600; flex:1;}
   .qr-block{display:flex; align-items:center; justify-content:center; flex:none; width:52px; height:52px; padding:4px; background:var(--surface); border-radius:10px; border:1px solid var(--line);}
@@ -204,9 +207,10 @@
   .comment-wrap{margin-top:6px;}
   .comment-wrap textarea{width:100%; min-height:64px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 56px 10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
   .mic-btn-small{bottom:auto; top:10px;}
+  .pack-comment-pad{padding:0 18px; margin-top:8px;}
+  .notes-row-inline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
+  .notes-clips-scroll{max-height:180px; overflow-y:auto;}
 
-  .notes-row{margin-top:14px;}
-  .notes-label{font-size:13px; color:var(--ink-soft); font-weight:600; margin-bottom:8px;}
   .note-add-btn{display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:2px dashed #C9C4B4; background:none; color:var(--ink-soft); font-size:14px; font-weight:600;}
   .note-add-btn svg{width:18px; height:18px; flex:none;}
   .note-add-btn.recording{border-color:var(--danger); color:var(--danger);}
@@ -214,7 +218,6 @@
   .note-clip{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--line);}
   .note-clip audio{flex:1; height:32px; min-width:0;}
   .note-clip a.note-clip-link{flex:1; font-size:14px; color:var(--steel); font-weight:600; text-decoration:none;}
-  .note-clip a.note-clip-fallback{flex:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:16px; text-decoration:none;}
   .note-clip .thumb-del{position:static; flex:none; width:24px; height:24px; border:none;}
 
   .note{margin:0 18px 18px; padding:12px 14px; background:#FFF3E8; border:1px solid #F3D8BC; border-radius:10px; font-size:12.5px; color:#8A4A17; line-height:1.5;}
@@ -230,6 +233,7 @@
   .confirm-card p{font-size:15px; margin:0 0 18px; color:var(--ink); line-height:1.4;}
   .confirm-actions{display:flex; gap:10px;}
   .btn-danger{flex:1; padding:13px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans); background:var(--danger); color:#fff;}
+  .btn-neutral{flex:1; padding:13px; border-radius:10px; border:1px solid var(--line); font-size:15px; font-weight:600; font-family:var(--sans); background:var(--surface); color:var(--ink);}
 
   .toast{
     position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(10px); max-width:82%; text-align:center;
@@ -284,22 +288,23 @@
     <input type="file" id="packPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addPackPhoto(event)">
   </div>
 
-  <button class="comment-toggle" id="packCommentToggle" onclick="expandPackComment()">+ комментарий к пачке</button>
-  <div class="textarea-wrap comment-wrap" id="packCommentWrap" style="display:none; padding:0 18px;">
-    <textarea id="packCommentText" placeholder="Необязательный комментарий к пачке" rows="2" onblur="savePackComment()"></textarea>
-    <button class="mic-btn mic-btn-small" id="packCommentMicBtn" onclick="togglePackMic('comment')">
-      <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-      <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-    </button>
-  </div>
+  <div class="pack-comment-pad">
+    <button class="comment-toggle" id="packCommentToggle" onclick="togglePackComment()">+ комментарий к пачке</button>
+    <div class="textarea-wrap comment-wrap" id="packCommentWrap" style="display:none;">
+      <textarea id="packCommentText" placeholder="Необязательный комментарий к пачке" rows="2" onblur="savePackComment()"></textarea>
+      <button class="mic-btn mic-btn-small" id="packCommentMicBtn" onclick="togglePackMic('comment')">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
 
-  <div class="notes-row" style="padding:0 18px;">
-    <div class="notes-label">Звуковые заметки пачки</div>
-    <button class="note-add-btn" id="packNoteAddBtn" onclick="togglePackMic('note')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-      <span>наговорить заметку</span>
-    </button>
-    <div class="notes-clips" id="packNotesClips"></div>
+      <div class="notes-row-inline">
+        <button class="note-add-btn" id="packNoteAddBtn" onclick="togglePackMic('note')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          <span>наговорить заметку</span>
+        </button>
+        <div class="notes-clips notes-clips-scroll" id="packNotesClips"></div>
+      </div>
+    </div>
   </div>
 
   <div class="section-label sort-row">
@@ -319,15 +324,28 @@
     <div class="sheet-title">
       <div class="pos-num" id="sheetNum">—</div>
       <h3 id="sheetTitleText">Новая позиция</h3>
+      <div class="field-tabs">
+        <button class="field-tab active" id="tabNameBtn" onclick="switchFieldTab('name')">Название</button>
+        <button class="field-tab" id="tabCommentBtn" onclick="switchFieldTab('comment')">Комментарий</button>
+      </div>
     </div>
 
     <div class="textarea-wrap">
       <textarea id="posText" placeholder="Например: опора 1.5 м — или — деталь номер 26" oninput="onPosTextInput()"></textarea>
+      <textarea id="commentText" placeholder="Необязательный комментарий" style="display:none;"></textarea>
       <canvas id="micWave" width="195" height="56" style="display:none;"></canvas>
-      <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <button class="mic-btn" id="micBtn" onclick="toggleMic(activeFieldTab)">
         <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
         <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       </button>
+    </div>
+
+    <div class="notes-row-inline" id="sheetNotesSection" style="display:none;">
+      <button class="note-add-btn" id="noteAddBtn" onclick="toggleMic('note')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <span>наговорить заметку</span>
+      </button>
+      <div class="notes-clips notes-clips-scroll" id="sheetNotesClips"></div>
     </div>
 
     <div class="suggest-box" id="suggestBox"></div>
@@ -351,24 +369,6 @@
       <input type="file" id="posPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addSheetPhoto(event)">
     </div>
 
-    <button class="comment-toggle" id="commentToggle" onclick="expandComment()">+ комментарий</button>
-    <div class="textarea-wrap comment-wrap" id="commentWrap" style="display:none;">
-      <textarea id="commentText" placeholder="Необязательный комментарий" rows="2"></textarea>
-      <button class="mic-btn mic-btn-small" id="commentMicBtn" onclick="toggleMic('comment')">
-        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
-    </div>
-
-    <div class="notes-row">
-      <div class="notes-label">Звуковые заметки</div>
-      <button class="note-add-btn" id="noteAddBtn" onclick="toggleMic('note')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-        <span>наговорить заметку</span>
-      </button>
-      <div class="notes-clips" id="sheetNotesClips"></div>
-    </div>
-
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeSheet()">Отмена</button>
       <button class="btn-primary" onclick="saveSheet()" id="saveBtn">Закрыть позицию</button>
@@ -387,7 +387,7 @@
       <p id="confirmText">Удалить эту позицию?</p>
       <div class="confirm-actions">
         <button class="btn-secondary" onclick="closeConfirm()">Отмена</button>
-        <button class="btn-danger" onclick="runConfirmedAction()">Удалить</button>
+        <button class="btn-danger" id="confirmActionBtn" onclick="runConfirmedAction()">Удалить</button>
       </div>
     </div>
   </div>
@@ -418,7 +418,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v68';
+const APP_VERSION = 'v69';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -426,7 +426,7 @@ let editingId = null;
 let sheetOriginalSnapshot = null; // текст/количество/фото/аудио/комментарий на момент открытия карточки — с этим сверяем при автосохранении
 let sheetPhotos = [];
 let sheetComment = ''; // текст комментария текущей открытой карточки
-let commentExpanded = false; // свёрнут ли блок комментария (по умолчанию — да, если он пуст)
+let activeFieldTab = 'name'; // 'name' | 'comment' — какая вкладка сейчас активна в карточке позиции
 let sheetAudioClips = []; // { url, role } — url это либо data:... (свежая запись), либо обычная ссылка (уже сохранённая); role: 'dictation' (диктовка названия/комментария) или 'note' (звуковая заметка)
 let recording = false;
 let recordingTarget = null; // 'name' | 'comment' | 'note' — куда идёт текущая запись
@@ -758,11 +758,12 @@ function confirmNewPack(){
   switchToPack(v);
 }
 
-// Подтверждение переноса — то же самое окно "Да/Отмена", что и для удаления.
+// Подтверждение переноса — то же самое окно, что и для удаления, но с нейтральной
+// кнопкой "Перенести", а не "Удалить", и с конкретным указанием откуда и что именно
+// переносится, а не только куда.
 function askConfirmMove(targetPack){
-  document.getElementById('confirmText').textContent = `Перенести в пачку ${targetPack}?`;
-  pendingConfirmAction = () => doMovePosition(targetPack);
-  document.getElementById('confirmOverlay').classList.add('open');
+  const text = `Перенести позицию ${moveSourcePosNum} из пачки ${currentPackNum} в пачку ${targetPack}?`;
+  openConfirm(text, 'Перенести', false, () => doMovePosition(targetPack));
 }
 
 async function doMovePosition(targetPack){
@@ -1176,15 +1177,13 @@ async function addPackPhoto(e){
   sendPackPhotoToServer(currentPackNum, url, packPhotosArr.length);
 }
 function askRemovePackPhoto(url){
-  document.getElementById('confirmText').textContent = 'Удалить это фото?';
-  pendingConfirmAction = () => {
+  openConfirm('Удалить это фото?', 'Удалить', true, () => {
     const i = packPhotosArr.indexOf(url);
     if(i>-1) packPhotosArr.splice(i,1);
     renderPackPhotos();
     fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify({ type:'pack_photo_remove', pack: currentPackNum, url: url }) })
       .catch(()=>{}); // не критично, если не пройдёт с первого раза — при следующей чистке будет видно на сервере
-  };
-  document.getElementById('confirmOverlay').classList.add('open');
+  });
 }
 
 let packCommentValue = ''; // то, что реально уже отправлено на сервер — сверяемся, чтобы не слать лишний раз
@@ -1192,17 +1191,27 @@ let packAudioClipsArr = []; // просто список ссылок (или da
 
 // Применяет packCommentValue к полю на экране — разворачивает блок, если есть текст,
 // сворачивает обратно, если пусто (например, при переключении на другую пачку).
+let packCommentExpanded = false; // развёрнут ли блок комментария пачки
+
 function applyPackCommentToUI(){
   document.getElementById('packCommentText').value = packCommentValue;
-  const hasText = !!packCommentValue;
-  document.getElementById('packCommentToggle').style.display = hasText ? 'none' : 'block';
-  document.getElementById('packCommentWrap').style.display = hasText ? 'block' : 'none';
+  packCommentExpanded = !!packCommentValue; // при переключении пачки — сразу развёрнут, если там уже есть текст
+  updatePackCommentToggleUI();
 }
 
-function expandPackComment(){
-  document.getElementById('packCommentToggle').style.display = 'none';
-  document.getElementById('packCommentWrap').style.display = 'block';
-  document.getElementById('packCommentText').focus();
+function updatePackCommentToggleUI(){
+  const btn = document.getElementById('packCommentToggle');
+  const wrap = document.getElementById('packCommentWrap');
+  wrap.style.display = packCommentExpanded ? 'block' : 'none';
+  btn.textContent = packCommentExpanded ? '− свернуть комментарий' : '+ комментарий к пачке';
+}
+
+// Раньше открывался по "+", но свернуть обратно было нечем — эта же самая кнопка
+// теперь работает в обе стороны: открывает и закрывает, просто меняя свою подпись.
+function togglePackComment(){
+  packCommentExpanded = !packCommentExpanded;
+  updatePackCommentToggleUI();
+  if(packCommentExpanded) document.getElementById('packCommentText').focus();
 }
 
 function savePackComment(){
@@ -1225,16 +1234,6 @@ function renderPackNotes(){
     player.controls = true;
     player.src = isLocal ? url : driveAudioUrl(url);
     card.appendChild(player);
-    if(!isLocal){
-      const fallback = document.createElement('a');
-      fallback.className = 'note-clip-fallback';
-      fallback.href = url;
-      fallback.target = '_blank';
-      fallback.rel = 'noopener';
-      fallback.textContent = '↗';
-      fallback.title = 'открыть отдельно, если не проигрывается';
-      card.appendChild(fallback);
-    }
     container.appendChild(card);
   });
 }
@@ -1363,10 +1362,8 @@ function openSheetNew(){
   sheetPhotos = [];
   sheetAudioClips = [];
   sheetComment = '';
-  commentExpanded = false;
   document.getElementById('commentText').value = '';
-  document.getElementById('commentToggle').style.display = 'block';
-  document.getElementById('commentWrap').style.display = 'none';
+  switchFieldTab('name');
   renderSheetPhotos();
   renderSheetNotes();
   document.getElementById('qrBlock').style.display = 'none'; // у новой, ещё не сохранённой позиции стабильного номера для ссылки нет
@@ -1399,9 +1396,7 @@ function openSheetEdit(id){
   sheetComment = p.comment || '';
   sheetAudioClips = (p.audioLinks || []).map(url => ({ url: url, role: 'note' }));
   document.getElementById('commentText').value = sheetComment;
-  commentExpanded = !!sheetComment;
-  document.getElementById('commentToggle').style.display = commentExpanded ? 'none' : 'block';
-  document.getElementById('commentWrap').style.display = commentExpanded ? 'block' : 'none';
+  switchFieldTab('name');
   sheetOriginalSnapshot = {
     text: p.text || '', qty: p.qty || 1, photos: JSON.stringify(p.photos || []),
     comment: sheetComment, audioClips: JSON.stringify(sheetAudioClips)
@@ -1456,7 +1451,7 @@ function showSheet(){
 // и клавиатуру из этого поля. Раньше поле держало фокус (и оранжевую рамку) до бесконечности,
 // пока не тапнешь конкретно в другое поле ввода.
 function blurTextareaIfTappedOutside(event){
-  const ta = document.getElementById('posText');
+  const ta = document.getElementById(activeFieldTab === 'comment' ? 'commentText' : 'posText');
   if(document.activeElement === ta && event.target !== ta){
     ta.blur();
   }
@@ -1569,8 +1564,7 @@ function stopWave(){
 
 async function toggleMic(target){
   target = target || 'name';
-  const btn = target === 'name' ? document.getElementById('micBtn')
-            : target === 'comment' ? document.getElementById('commentMicBtn')
+  const btn = (target === 'name' || target === 'comment') ? document.getElementById('micBtn')
             : document.getElementById('noteAddBtn');
 
   if(btn.classList.contains('processing')) return; // идёт распознавание — игнорируем тап
@@ -1678,7 +1672,7 @@ function stopMicVisual(){
   if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
   recording = false;
   recordingTarget = null;
-  ['micBtn','commentMicBtn','noteAddBtn'].forEach(id=>{
+  ['micBtn','noteAddBtn'].forEach(id=>{
     const btn = document.getElementById(id);
     if(btn){ btn.classList.remove('recording'); btn.classList.remove('processing'); }
   });
@@ -1694,9 +1688,7 @@ async function addSheetPhoto(e){
 }
 function askRemoveSheetPhoto(idx, ev){
   if(ev) ev.stopPropagation();
-  document.getElementById('confirmText').textContent = 'Удалить это фото?';
-  pendingConfirmAction = () => { sheetPhotos.splice(idx,1); renderSheetPhotos(); };
-  document.getElementById('confirmOverlay').classList.add('open');
+  openConfirm('Удалить это фото?', 'Удалить', true, () => { sheetPhotos.splice(idx,1); renderSheetPhotos(); });
 }
 function removeSheetPhoto(idx){
   sheetPhotos.splice(idx,1);
@@ -1716,11 +1708,17 @@ function renderSheetPhotos(){
 // Комментарий свёрнут по умолчанию (пустой) — тап по "+ комментарий" разворачивает
 // компактное поле. Если комментарий уже есть — карточка при открытии сама начинает
 // в развёрнутом виде (см. openSheetEdit), сворачивать уже ненужно.
-function expandComment(){
-  commentExpanded = true;
-  document.getElementById('commentToggle').style.display = 'none';
-  document.getElementById('commentWrap').style.display = 'block';
-  document.getElementById('commentText').focus();
+// Переключение между вкладками "Название" и "Комментарий" в карточке позиции — общее
+// поле ввода показывает то одно текстовое поле, то другое, микрофон общий (пишет в
+// activeFieldTab), заметки видны только на вкладке "Комментарий".
+function switchFieldTab(tab){
+  activeFieldTab = tab;
+  document.getElementById('tabNameBtn').classList.toggle('active', tab === 'name');
+  document.getElementById('tabCommentBtn').classList.toggle('active', tab === 'comment');
+  document.getElementById('posText').style.display = tab === 'name' ? 'block' : 'none';
+  document.getElementById('commentText').style.display = tab === 'comment' ? 'block' : 'none';
+  document.getElementById('sheetNotesSection').style.display = tab === 'comment' ? 'block' : 'none';
+  if(tab === 'comment') hideSuggestions(); // подсказки — только для названия
 }
 
 function renderSheetNotes(){
@@ -1735,17 +1733,6 @@ function renderSheetNotes(){
     player.controls = true;
     player.src = isLocal ? clip.url : driveAudioUrl(clip.url);
     card.appendChild(player);
-    if(!isLocal){
-      // запасной вариант — если проигрывание на месте вдруг не сработает у конкретного файла
-      const fallback = document.createElement('a');
-      fallback.className = 'note-clip-fallback';
-      fallback.href = clip.url;
-      fallback.target = '_blank';
-      fallback.rel = 'noopener';
-      fallback.textContent = '↗';
-      fallback.title = 'открыть отдельно, если не проигрывается';
-      card.appendChild(fallback);
-    }
     const del = document.createElement('button');
     del.className = 'thumb-del';
     del.textContent = '×';
@@ -1756,9 +1743,7 @@ function renderSheetNotes(){
 }
 
 function askRemoveSheetAudioClip(idx){
-  document.getElementById('confirmText').textContent = 'Удалить эту заметку?';
-  pendingConfirmAction = () => { sheetAudioClips.splice(idx, 1); renderSheetNotes(); };
-  document.getElementById('confirmOverlay').classList.add('open');
+  openConfirm('Удалить эту заметку?', 'Удалить', true, () => { sheetAudioClips.splice(idx, 1); renderSheetNotes(); });
 }
 
 // Записывает то, что сейчас в полях карточки, в общий список positions[] и возвращает
@@ -1830,6 +1815,17 @@ function saveSheet(){
 let pendingDeleteId = null;
 let pendingConfirmAction = null; // общее окно подтверждения — что именно выполнить по нажатию "Удалить"
 
+// Общее окно подтверждения — text вопрос, label подпись на кнопке, danger — красная
+// (для разрушительных действий) или нейтральная (для остальных, вроде переноса).
+function openConfirm(text, label, danger, action){
+  document.getElementById('confirmText').textContent = text;
+  const btn = document.getElementById('confirmActionBtn');
+  btn.textContent = label;
+  btn.className = danger ? 'btn-danger' : 'btn-neutral';
+  pendingConfirmAction = action;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
 function runConfirmedAction(){
   document.getElementById('confirmOverlay').classList.remove('open');
   const action = pendingConfirmAction;
@@ -1843,17 +1839,13 @@ function askDeletePosition(id, ev){
   if(ev) ev.stopPropagation();
   pendingDeleteId = id;
   pendingDeleteFromSheet = false;
-  document.getElementById('confirmText').textContent = 'Удалить эту позицию?';
-  pendingConfirmAction = confirmDelete;
-  document.getElementById('confirmOverlay').classList.add('open');
+  openConfirm('Удалить эту позицию?', 'Удалить', true, confirmDelete);
 }
 function askDeleteFromSheet(){
   pendingDeleteId = editingId;
   pendingDeleteNum = parseInt(document.getElementById('sheetNum').textContent);
   pendingDeleteFromSheet = true;
-  document.getElementById('confirmText').textContent = 'Удалить эту позицию?';
-  pendingConfirmAction = confirmDelete;
-  document.getElementById('confirmOverlay').classList.add('open');
+  openConfirm('Удалить эту позицию?', 'Удалить', true, confirmDelete);
 }
 function closeConfirm(){
   document.getElementById('confirmOverlay').classList.remove('open');
