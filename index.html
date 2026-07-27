@@ -200,8 +200,9 @@
   .btn-secondary{background:var(--surface); color:var(--ink-soft); border:1px solid var(--line);}
   .btn-primary{background:var(--ink); color:var(--paper);}
   .btn-primary:active{background:#000;}
-  .btn-delete{width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1px solid #EFC9C9; background:#FDF3F3; color:var(--danger); font-size:14px; font-weight:600;}
-  .btn-move{width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:14px; font-weight:600;}
+  .sheet-actions-secondary{display:flex; gap:10px; margin-top:10px;}
+  .btn-delete{flex:1; padding:12px; border-radius:10px; border:1px solid #EFC9C9; background:#FDF3F3; color:var(--danger); font-size:14px; font-weight:600;}
+  .btn-move{flex:1; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:14px; font-weight:600;}
 
   .comment-toggle{margin-top:12px; padding:8px 2px; border:none; background:none; color:var(--steel); font-size:14px; font-weight:600; text-align:left;}
   .comment-wrap{margin-top:6px;}
@@ -379,8 +380,10 @@
       <button class="btn-secondary" onclick="closeSheet()">Отмена</button>
       <button class="btn-primary" onclick="saveSheet()" id="saveBtn">Закрыть позицию</button>
     </div>
-    <button class="btn-move" id="moveBtn" style="display:none" onclick="askMovePosition()">Перенести в другую пачку</button>
-    <button class="btn-delete" id="deleteBtn" style="display:none" onclick="askDeleteFromSheet()">Удалить позицию</button>
+    <div class="sheet-actions-secondary" id="secondaryActionsRow" style="display:none;">
+      <button class="btn-move" id="moveBtn" onclick="askMovePosition()">Перенести</button>
+      <button class="btn-delete" id="deleteBtn" onclick="askDeleteFromSheet()">Удалить</button>
+    </div>
   </div>
 
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -424,7 +427,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v73';
+const APP_VERSION = 'v74';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -1358,8 +1361,7 @@ function openSheetNew(){
   document.getElementById('posText').value = '';
   document.getElementById('qtyInput').value = 1;
   document.getElementById('saveBtn').textContent = 'Закрыть позицию';
-  document.getElementById('deleteBtn').style.display = 'none';
-  document.getElementById('moveBtn').style.display = 'none'; // новую, ещё не сохранённую позицию переносить некуда
+  document.getElementById('secondaryActionsRow').style.display = 'none'; // у новой, ещё не сохранённой позиции — некуда переносить и нечего удалять
   sheetPhotos = [];
   sheetAudioClips = [];
   sheetComment = '';
@@ -1387,8 +1389,7 @@ function openSheetEdit(id){
   document.getElementById('posText').value = p.text || '';
   document.getElementById('qtyInput').value = p.qty || 1;
   document.getElementById('saveBtn').textContent = 'Сохранить';
-  document.getElementById('deleteBtn').style.display = 'block';
-  document.getElementById('moveBtn').style.display = 'block';
+  document.getElementById('secondaryActionsRow').style.display = 'flex';
   sheetPhotos = [...p.photos];
   // Комментарий и звуковые клипы, пришедшие с сервера — уже сохранённые данные, не
   // черновик. Их изначальную роль (диктовка названия/комментария или заметка) мы не
