@@ -198,6 +198,23 @@
   .btn-primary{background:var(--ink); color:var(--paper);}
   .btn-primary:active{background:#000;}
   .btn-delete{width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1px solid #EFC9C9; background:#FDF3F3; color:var(--danger); font-size:14px; font-weight:600;}
+  .btn-move{width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:14px; font-weight:600;}
+
+  .comment-toggle{margin-top:12px; padding:8px 2px; border:none; background:none; color:var(--steel); font-size:14px; font-weight:600; text-align:left;}
+  .comment-wrap{margin-top:6px;}
+  .comment-wrap textarea{width:100%; min-height:64px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 56px 10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
+  .mic-btn-small{bottom:auto; top:10px;}
+
+  .notes-row{margin-top:14px;}
+  .notes-label{font-size:13px; color:var(--ink-soft); font-weight:600; margin-bottom:8px;}
+  .note-add-btn{display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:2px dashed #C9C4B4; background:none; color:var(--ink-soft); font-size:14px; font-weight:600;}
+  .note-add-btn svg{width:18px; height:18px; flex:none;}
+  .note-add-btn.recording{border-color:var(--danger); color:var(--danger);}
+  .notes-clips{display:flex; flex-direction:column; gap:8px; margin-top:8px;}
+  .note-clip{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--line);}
+  .note-clip audio{flex:1; height:32px; min-width:0;}
+  .note-clip a.note-clip-link{flex:1; font-size:14px; color:var(--steel); font-weight:600; text-decoration:none;}
+  .note-clip .thumb-del{position:static; flex:none; width:24px; height:24px; border:none;}
 
   .note{margin:0 18px 18px; padding:12px 14px; background:#FFF3E8; border:1px solid #F3D8BC; border-radius:10px; font-size:12.5px; color:#8A4A17; line-height:1.5;}
 
@@ -240,7 +257,7 @@
 <div id="app">
 
   <div class="topbar">
-    <button class="pack-tag-btn" onclick="openPackList()">
+    <button class="pack-tag-btn" onclick="openPackListNormal()">
       <div class="pack-tag">
         <div class="label">Пачка</div>
         <div class="num" id="packNum">030</div>
@@ -264,6 +281,24 @@
       <img id="packQrImg" src="" alt="QR-код пачки">
     </div>
     <input type="file" id="packPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addPackPhoto(event)">
+  </div>
+
+  <button class="comment-toggle" id="packCommentToggle" onclick="expandPackComment()">+ комментарий к пачке</button>
+  <div class="textarea-wrap comment-wrap" id="packCommentWrap" style="display:none; padding:0 18px;">
+    <textarea id="packCommentText" placeholder="Необязательный комментарий к пачке" rows="2" onblur="savePackComment()"></textarea>
+    <button class="mic-btn mic-btn-small" id="packCommentMicBtn" onclick="togglePackMic('comment')">
+      <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+      <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>
+  </div>
+
+  <div class="notes-row" style="padding:0 18px;">
+    <div class="notes-label">Звуковые заметки пачки</div>
+    <button class="note-add-btn" id="packNoteAddBtn" onclick="togglePackMic('note')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+      <span>наговорить заметку</span>
+    </button>
+    <div class="notes-clips" id="packNotesClips"></div>
   </div>
 
   <div class="section-label sort-row">
@@ -315,10 +350,29 @@
       <input type="file" id="posPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="addSheetPhoto(event)">
     </div>
 
+    <button class="comment-toggle" id="commentToggle" onclick="expandComment()">+ комментарий</button>
+    <div class="textarea-wrap comment-wrap" id="commentWrap" style="display:none;">
+      <textarea id="commentText" placeholder="Необязательный комментарий" rows="2"></textarea>
+      <button class="mic-btn mic-btn-small" id="commentMicBtn" onclick="toggleMic('comment')">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+    </div>
+
+    <div class="notes-row">
+      <div class="notes-label">Звуковые заметки</div>
+      <button class="note-add-btn" id="noteAddBtn" onclick="toggleMic('note')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <span>наговорить заметку</span>
+      </button>
+      <div class="notes-clips" id="sheetNotesClips"></div>
+    </div>
+
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeSheet()">Отмена</button>
       <button class="btn-primary" onclick="saveSheet()" id="saveBtn">Закрыть позицию</button>
     </div>
+    <button class="btn-move" id="moveBtn" style="display:none" onclick="askMovePosition()">Перенести в другую пачку</button>
     <button class="btn-delete" id="deleteBtn" style="display:none" onclick="askDeleteFromSheet()">Удалить позицию</button>
   </div>
 
@@ -340,7 +394,7 @@
   <div class="sheet-backdrop" id="packListBackdrop" onclick="closePackList()"></div>
   <div class="sheet" id="packListSheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title"><h3 style="flex:1">Все пачки</h3></div>
+    <div class="sheet-title"><h3 style="flex:1" id="packListTitle">Все пачки</h3></div>
     <div id="packListItems" style="display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow-y:auto;"></div>
     <div class="sheet-actions" style="margin-top:16px;">
       <button class="btn-primary" style="flex:1" onclick="askNewPack()">+ Новая / другая пачка</button>
@@ -363,14 +417,18 @@
 </div>
 
 <script>
-const APP_VERSION = 'v66';
+const APP_VERSION = 'v67';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
 let editingId = null;
-let sheetOriginalSnapshot = null; // текст/количество/фото/аудио на момент открытия карточки — с этим сверяем при автосохранении
+let sheetOriginalSnapshot = null; // текст/количество/фото/аудио/комментарий на момент открытия карточки — с этим сверяем при автосохранении
 let sheetPhotos = [];
+let sheetComment = ''; // текст комментария текущей открытой карточки
+let commentExpanded = false; // свёрнут ли блок комментария (по умолчанию — да, если он пуст)
+let sheetAudioClips = []; // { url, role } — url это либо data:... (свежая запись), либо обычная ссылка (уже сохранённая); role: 'dictation' (диктовка названия/комментария) или 'note' (звуковая заметка)
 let recording = false;
+let recordingTarget = null; // 'name' | 'comment' | 'note' — куда идёт текущая запись
 let mediaRecorder = null;
 let audioChunks = [];
 let micStream = null;
@@ -378,7 +436,6 @@ let waveAudioCtx = null;
 let waveAnalyser = null;
 let waveAnimFrame = null;
 let speechFrames = 0; // сколько кадров записи звук был уверенно громче фонового шума (не единичный всплеск)
-let sheetAudioDataUrl = null; // база64 последней записанной (и распознанной) аудиозаписи текущей позиции — уходит в Таблицу при сохранении
 const locallyPhotographedPositions = new Set(); // ключи "пачка:номер_позиции" — сфотографированы в этой сессии, сервер их фото не подменяет
 const locallyPhotographedPacks = new Set(); // номера пачек — то же самое для общих фото пачки
 let sortAscending = false;
@@ -612,8 +669,9 @@ async function sendPositionToServer(packNum, posObj){
     posNum: posObj.num,
     qty: posObj.qty,
     text: posObj.text,
+    comment: posObj.comment || '',
     photos: posObj.photos || [],
-    audio: posObj.audio || ''
+    audioClips: posObj.audioClips || []
   };
   const result = await sendToServer(payload);
   savingPosition = false; // отправка завершена (успешно или нет) — фоновая синхронизация может продолжать
@@ -690,7 +748,45 @@ function confirmNewPack(){
   let v = document.getElementById('newPackNumInput').value.trim();
   if(!v) return;
   document.getElementById('newPackOverlay').classList.remove('open');
+  if(packListMode === 'move'){
+    const targetPack = padPack(v);
+    if(targetPack === currentPackNum){ showToast('Это и есть текущая пачка'); packListMode = null; return; }
+    askConfirmMove(targetPack);
+    return;
+  }
   switchToPack(v);
+}
+
+// Подтверждение переноса — то же самое окно "Да/Отмена", что и для удаления.
+function askConfirmMove(targetPack){
+  document.getElementById('confirmText').textContent = `Перенести в пачку ${targetPack}?`;
+  pendingConfirmAction = () => doMovePosition(targetPack);
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+async function doMovePosition(targetPack){
+  const sourcePack = currentPackNum;
+  const sourceNum = moveSourcePosNum;
+  packListMode = null;
+
+  // Позиция сразу пропадает из текущего списка и карточка закрывается — она уже не
+  // относится к этой пачке, ждать ответа сервера незачем, чтобы это увидеть.
+  positions = positions.filter(x => x.num !== sourceNum);
+  document.getElementById('backdrop').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  savingPosition = false;
+  render();
+
+  const payload = { type:'move_position', pack: sourcePack, posNum: sourceNum, targetPack: targetPack };
+  const result = await sendToServer(payload);
+  if(result.ok){
+    const newNum = result.data && result.data.newNum;
+    showToast(`Перенесено в пачку ${targetPack}` + (newNum ? `, позиция №${newNum}` : ''));
+  } else {
+    logErrorToServer(sourcePack, sourceNum, 'перенос в пачку ' + targetPack, result.error);
+    queuePending(payload);
+    showToast('Перенос не прошёл сейчас — попробую ещё раз позже');
+  }
 }
 
 // забирает из Google ВСЕ строки, обновляет список известных текстов (для подсказок)
@@ -711,10 +807,13 @@ async function syncFromServer(num){
 
     return {
       positions: posRows.map(r => ({
-        id: nextId++, num: Number(r.num), text: r.text || null,
-        qty: Number(r.qty) || 1, photos: Array.isArray(r.photos) ? r.photos : (r.photos ? [r.photos] : [])
+        id: nextId++, num: Number(r.num), text: r.text || null, comment: r.comment || null,
+        qty: Number(r.qty) || 1, photos: Array.isArray(r.photos) ? r.photos : (r.photos ? [r.photos] : []),
+        audioLinks: Array.isArray(r.audioLinks) ? r.audioLinks : []
       })),
-      packPhotos: packPhotoRow ? (packPhotoRow.photos || []) : []
+      packPhotos: packPhotoRow ? (packPhotoRow.photos || []) : [],
+      packComment: packPhotoRow ? (packPhotoRow.comment || '') : '',
+      packAudioLinks: packPhotoRow ? (Array.isArray(packPhotoRow.audioLinks) ? packPhotoRow.audioLinks : []) : []
     };
   } catch(e){
     return null;
@@ -735,7 +834,7 @@ let savingPosition = false; // идёт ли прямо сейчас отпра�
 // изменилось, и не перерисовывать список без нужды.
 function positionsSignature(posArr){
   return JSON.stringify(
-    posArr.slice().sort((a,b)=>a.num-b.num).map(p=>({num:p.num, text:p.text, qty:p.qty, photos:p.photos, audio:p.audio}))
+    posArr.slice().sort((a,b)=>a.num-b.num).map(p=>({num:p.num, text:p.text, qty:p.qty, comment:p.comment, photos:p.photos, audioLinks:p.audioLinks}))
   );
 }
 
@@ -793,6 +892,8 @@ function refreshOpenSheetIfUntouched(){
 
   const text = document.getElementById('posText').value.trim();
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
+  const comment = document.getElementById('commentText').value.trim();
+
   const textUnchanged = text === sheetOriginalSnapshot.text && qty === sheetOriginalSnapshot.qty;
   if(textUnchanged){
     document.getElementById('posText').value = p.text || '';
@@ -801,10 +902,26 @@ function refreshOpenSheetIfUntouched(){
     sheetOriginalSnapshot.qty = p.qty || 1;
   }
 
+  const commentUnchanged = comment === sheetOriginalSnapshot.comment;
+  if(commentUnchanged){
+    document.getElementById('commentText').value = p.comment || '';
+    sheetOriginalSnapshot.comment = p.comment || '';
+  }
+
   if(!locallyPhotographedPositions.has(currentPackNum + ':' + num)){
     sheetPhotos = [...p.photos];
     sheetOriginalSnapshot.photos = JSON.stringify(p.photos || []);
     renderSheetPhotos();
+  }
+
+  // Аудио-клипы (диктовка и звуковые заметки) — в отличие от фото, их можно записать
+  // и на iPad (микрофон не ограничен так же, как камера), значит риск затереть
+  // локально записанное реальный. Обновляем только если ничего нового не записывали.
+  const audioUnchanged = JSON.stringify(sheetAudioClips) === sheetOriginalSnapshot.audioClips;
+  if(audioUnchanged){
+    sheetAudioClips = (p.audioLinks || []).map(url => ({ url: url, role: 'note' }));
+    sheetOriginalSnapshot.audioClips = JSON.stringify(sheetAudioClips);
+    renderSheetNotes();
   }
 }
 
@@ -825,7 +942,9 @@ async function switchToPack(rawNum){
   packs[currentPackNum] = {
     photos: [...packPhotosArr],
     positions: positions.map(p=>({...p, photos:[...p.photos]})),
-    posCounter: posCounter
+    posCounter: posCounter,
+    comment: packCommentValue,
+    audioClips: [...packAudioClipsArr]
   };
   currentPackNum = num;
   saveViewState(null); // новая пачка — открытой позиции пока нет
@@ -843,11 +962,17 @@ async function switchToPack(rawNum){
     positions = cached.positions.map(p=>({...p, photos:[...p.photos]}));
     posCounter = cached.posCounter;
     packPhotosArr = [...cached.photos];
+    packCommentValue = cached.comment || '';
+    packAudioClipsArr = [...(cached.audioClips || [])];
   } else {
     positions = [];
     posCounter = 0;
     packPhotosArr = [];
+    packCommentValue = '';
+    packAudioClipsArr = [];
   }
+  applyPackCommentToUI();
+  renderPackNotes();
   await mergePendingIntoCurrentPack();
   renderPackPhotos();
   syncingPack = true; // пока не пришёл ответ с сервера — если позиций ещё нет, показываем спиннер, а не "пусто"
@@ -866,6 +991,10 @@ async function switchToPack(rawNum){
       return fp;
     });
     packPhotosArr = locallyPhotographedPacks.has(currentPackNum) ? packPhotosArr : fresh.packPhotos;
+    packCommentValue = fresh.packComment || '';
+    packAudioClipsArr = fresh.packAudioLinks || [];
+    applyPackCommentToUI();
+    renderPackNotes();
     posCounter = Math.max(0, posCounter, ...positions.map(p=>p.num));
     await mergePendingIntoCurrentPack();
     renderPackPhotos();
@@ -900,8 +1029,24 @@ async function switchToPack(rawNum){
   packs[num] = { photos:[...packPhotosArr], positions: positions.map(p=>({...p, photos:[...p.photos]})), posCounter: posCounter };
 }
 
+let packListMode = null; // null | 'move' — режим выбора пачки-получателя при переносе позиции
+let moveSourcePosNum = null; // номер переносимой позиции (запоминаем на момент открытия списка)
+
+function openPackListNormal(){
+  packListMode = null;
+  openPackList();
+}
+
+function askMovePosition(){
+  if(editingId === null) return; // у новой, ещё не сохранённой позиции переносить нечего
+  moveSourcePosNum = parseInt(document.getElementById('sheetNum').textContent);
+  packListMode = 'move';
+  openPackList();
+}
+
 async function openPackList(){
   const container = document.getElementById('packListItems');
+  document.getElementById('packListTitle').textContent = packListMode === 'move' ? 'Перенести в какую пачку?' : 'Все пачки';
   container.innerHTML = '<div class="loading-hint" style="display:flex;"><span class="spinner"></span><span style="font-weight:600;">загружаю список пачек…</span></div>';
   document.getElementById('packListBackdrop').classList.add('open');
   document.getElementById('packListSheet').classList.add('open');
@@ -936,7 +1081,15 @@ async function openPackList(){
   nums.forEach(num=>{
     const btn = document.createElement('button');
     btn.className = 'pack-list-item' + (num===currentPackNum ? ' active' : '');
-    btn.onclick = ()=> switchToPack(num);
+    btn.onclick = () => {
+      if(packListMode === 'move'){
+        if(num === currentPackNum){ showToast('Это и есть текущая пачка'); return; }
+        closePackList();
+        askConfirmMove(num);
+      } else {
+        switchToPack(num);
+      }
+    };
     btn.innerHTML = `<span class="pack-list-num">${num}</span><span class="pack-list-meta">${counts[num]} поз.${num===currentPackNum ? ' · текущая' : ''}</span>`;
     container.appendChild(btn);
   });
@@ -1020,6 +1173,145 @@ function askRemovePackPhoto(url){
   document.getElementById('confirmOverlay').classList.add('open');
 }
 
+let packCommentValue = ''; // то, что реально уже отправлено на сервер — сверяемся, чтобы не слать лишний раз
+let packAudioClipsArr = []; // просто список ссылок (или data: для только что записанных) — у пачки нет отдельного "черновика", всё уходит сразу
+
+// Применяет packCommentValue к полю на экране — разворачивает блок, если есть текст,
+// сворачивает обратно, если пусто (например, при переключении на другую пачку).
+function applyPackCommentToUI(){
+  document.getElementById('packCommentText').value = packCommentValue;
+  const hasText = !!packCommentValue;
+  document.getElementById('packCommentToggle').style.display = hasText ? 'none' : 'block';
+  document.getElementById('packCommentWrap').style.display = hasText ? 'block' : 'none';
+}
+
+function expandPackComment(){
+  document.getElementById('packCommentToggle').style.display = 'none';
+  document.getElementById('packCommentWrap').style.display = 'block';
+  document.getElementById('packCommentText').focus();
+}
+
+function savePackComment(){
+  const text = document.getElementById('packCommentText').value.trim();
+  if(text === packCommentValue) return; // ничего не изменилось — незачем слать
+  packCommentValue = text;
+  sendToServer({ type:'pack_comment', pack: currentPackNum, comment: text }).then(result => {
+    if(!result.ok) showToast('Комментарий пачки не отправлен: ' + (result.error || 'ошибка'));
+  });
+}
+
+function renderPackNotes(){
+  const container = document.getElementById('packNotesClips');
+  container.innerHTML = '';
+  packAudioClipsArr.forEach((url, idx) => {
+    const card = document.createElement('div');
+    card.className = 'note-clip';
+    const isLocal = url.startsWith('data:');
+    const player = document.createElement(isLocal ? 'audio' : 'a');
+    if(isLocal){
+      player.controls = true;
+      player.src = url;
+    } else {
+      player.className = 'note-clip-link';
+      player.href = url;
+      player.target = '_blank';
+      player.rel = 'noopener';
+      player.textContent = '▶ заметка ' + (idx + 1);
+    }
+    card.appendChild(player);
+    container.appendChild(card);
+  });
+}
+
+// Тот же принцип записи, что и toggleMic у позиции, только цели свои: 'comment'
+// (диктовка комментария пачки, распознаётся в текст) и 'note' (звуковая заметка
+// пачки — уходит на сервер сразу, у пачки нет отдельной кнопки "Сохранить").
+async function togglePackMic(target){
+  const btn = target === 'comment' ? document.getElementById('packCommentMicBtn') : document.getElementById('packNoteAddBtn');
+  if(btn.classList.contains('processing')) return;
+
+  if(recording){
+    if(recordingTarget !== 'pack-' + target) return;
+    if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    return;
+  }
+
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e){
+    showToast('Нет доступа к микрофону: ' + e.message);
+    return;
+  }
+  micStream = stream;
+
+  const preferredType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+  audioChunks = [];
+  try{
+    mediaRecorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
+  } catch(e){
+    showToast('Запись голоса не поддерживается этим браузером: ' + e.message);
+    stream.getTracks().forEach(t=>t.stop());
+    micStream = null;
+    return;
+  }
+
+  mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) audioChunks.push(e.data); };
+
+  mediaRecorder.onstop = async ()=>{
+    if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
+    recording = false;
+    recordingTarget = null;
+    btn.classList.remove('recording');
+
+    if(!audioChunks.length) return;
+    if(speechFrames < 10){
+      showToast('Ничего не расслышал — тишина, попробуй ещё раз');
+      return;
+    }
+
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const dataUrl = await fileToDataUrl(blob);
+
+    if(target === 'note'){
+      btn.classList.add('processing');
+      const result = await sendToServer({ type:'pack_audio_note', pack: currentPackNum, audio: dataUrl });
+      btn.classList.remove('processing');
+      if(result.ok){
+        packAudioClipsArr.push((result.data && result.data.url) ? result.data.url : dataUrl);
+        renderPackNotes();
+        showToast('Заметка добавлена');
+      } else {
+        showToast('Не удалось отправить заметку: ' + (result.error || 'ошибка'));
+      }
+      return;
+    }
+
+    btn.classList.add('processing');
+    const result = await sendToServer({ type:'transcribe', audio: dataUrl });
+    btn.classList.remove('processing');
+    if(result.ok && result.data && typeof result.data.text === 'string'){
+      const recognized = result.data.text.trim();
+      if(recognized){
+        const ta = document.getElementById('packCommentText');
+        ta.value = ta.value.trim() ? (ta.value.trim() + ', ' + recognized) : recognized;
+        savePackComment();
+      } else {
+        showToast('Распознавание вернуло пустой текст');
+      }
+    } else {
+      showToast('Не удалось распознать: ' + (result.error || 'ошибка'));
+    }
+  };
+
+  mediaRecorder.start();
+  recording = true;
+  recordingTarget = 'pack-' + target;
+  speechFrames = 0;
+  btn.classList.add('recording');
+  startWave(stream, false); // у пачки нет своего холста для волны, только счётчик громкости
+}
+
 function renderPackPhotos(){
   const container = document.getElementById('packPhotos');
   container.querySelectorAll('.thumb-wrap').forEach(el=>el.remove());
@@ -1051,9 +1343,16 @@ function openSheetNew(){
   document.getElementById('qtyInput').value = 1;
   document.getElementById('saveBtn').textContent = 'Закрыть позицию';
   document.getElementById('deleteBtn').style.display = 'none';
+  document.getElementById('moveBtn').style.display = 'none'; // новую, ещё не сохранённую позицию переносить некуда
   sheetPhotos = [];
-  sheetAudioDataUrl = null;
+  sheetAudioClips = [];
+  sheetComment = '';
+  commentExpanded = false;
+  document.getElementById('commentText').value = '';
+  document.getElementById('commentToggle').style.display = 'block';
+  document.getElementById('commentWrap').style.display = 'none';
   renderSheetPhotos();
+  renderSheetNotes();
   document.getElementById('qrBlock').style.display = 'none'; // у новой, ещё не сохранённой позиции стабильного номера для ссылки нет
   hideSuggestions();
   showSheet();
@@ -1075,10 +1374,24 @@ function openSheetEdit(id){
   document.getElementById('qtyInput').value = p.qty || 1;
   document.getElementById('saveBtn').textContent = 'Сохранить';
   document.getElementById('deleteBtn').style.display = 'block';
+  document.getElementById('moveBtn').style.display = 'block';
   sheetPhotos = [...p.photos];
-  sheetAudioDataUrl = null;
-  sheetOriginalSnapshot = { text: p.text || '', qty: p.qty || 1, photos: JSON.stringify(p.photos || []), audio: null };
+  // Комментарий и звуковые клипы, пришедшие с сервера — уже сохранённые данные, не
+  // черновик. Их изначальную роль (диктовка названия/комментария или заметка) мы не
+  // храним отдельно — для отображения после переоткрытия карточки все они одинаково
+  // считаются заметками, доступными для прослушивания.
+  sheetComment = p.comment || '';
+  sheetAudioClips = (p.audioLinks || []).map(url => ({ url: url, role: 'note' }));
+  document.getElementById('commentText').value = sheetComment;
+  commentExpanded = !!sheetComment;
+  document.getElementById('commentToggle').style.display = commentExpanded ? 'none' : 'block';
+  document.getElementById('commentWrap').style.display = commentExpanded ? 'block' : 'none';
+  sheetOriginalSnapshot = {
+    text: p.text || '', qty: p.qty || 1, photos: JSON.stringify(p.photos || []),
+    comment: sheetComment, audioClips: JSON.stringify(sheetAudioClips)
+  };
   renderSheetPhotos();
+  renderSheetNotes();
   updateQrBlock(p.num);
   hideSuggestions();
   showSheet();
@@ -1152,7 +1465,7 @@ function changeQty(delta){
 
 // Рисует "эквалайзер" (частотные столбики) по реальному звуку с микрофона, пока идёт запись —
 // не сырая форма сигнала (она у голоса рваная и нервно дёргается), а сглаженная громкость по полосам частот.
-function startWave(stream){
+function startWave(stream, withCanvas){
   try{
     waveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = waveAudioCtx.createMediaStreamSource(stream);
@@ -1161,17 +1474,19 @@ function startWave(stream){
     waveAnalyser.smoothingTimeConstant = 0.6;
     source.connect(waveAnalyser);
 
-    const canvas = document.getElementById('micWave');
-    canvas.style.display = 'block';
-    const ctx = canvas.getContext('2d');
+    let canvas, ctx, barColor, barWidth, gap, slot, capacity, history;
+    if(withCanvas){
+      canvas = document.getElementById('micWave');
+      canvas.style.display = 'block';
+      ctx = canvas.getContext('2d');
+      barColor = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim() || '#5B5850';
+      barWidth = 1.5;
+      gap = 2.2;
+      slot = barWidth + gap;
+      capacity = Math.ceil(canvas.width / slot);
+      history = new Array(capacity).fill(0); // копим последние замеры громкости — это и есть "лента"
+    }
     const freqData = new Uint8Array(waveAnalyser.frequencyBinCount);
-    const barColor = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim() || '#5B5850';
-
-    const barWidth = 1.5;
-    const gap = 2.2;
-    const slot = barWidth + gap;
-    const capacity = Math.ceil(canvas.width / slot);
-    const history = new Array(capacity).fill(0); // копим последние замеры громкости — это и есть "лента"
     let frameCount = 0;
 
     const draw = () => {
@@ -1183,6 +1498,16 @@ function startWave(stream){
       for(let i=0; i<usable; i++) sum += freqData[i];
       const rawLevel = usable ? (sum / usable) / 255 : 0; // 0..1
 
+      // Отдельный, более строгий порог именно для решения "отправлять ли на распознавание".
+      // Единичный громкий кадр (щелчок, вдох, шорох по микрофону) не считается — нужно, чтобы
+      // звук держался ощутимое число кадров подряд-ish, это гораздо больше похоже на речь.
+      // Считаем ВСЕГДА, независимо от того, рисуем ли волну — иначе на полях без своего
+      // холста (комментарий, звуковые заметки) любая запись считалась бы "тишиной".
+      const speechThreshold = 0.16;
+      if(rawLevel > speechThreshold) speechFrames++;
+
+      if(!withCanvas) return; // только счётчик громкости, без отрисовки — у этого поля нет своего холста
+
       // Ниже этого порога — фоновый шум/тишина между словами, сводим в точку. Выше порога
       // НЕ растягиваем на всю высоту (раньше это стирало промежуточные значения и превращало
       // всё в "или точка, или максимум") — просто вычитаем порог, сохраняя естественный разброс громкости.
@@ -1191,12 +1516,6 @@ function startWave(stream){
       if(rawLevel > noiseFloor){
         level = Math.min(1, rawLevel - noiseFloor);
       }
-
-      // Отдельный, более строгий порог именно для решения "отправлять ли на распознавание".
-      // Единичный громкий кадр (щелчок, вдох, шорох по микрофону) не считается — нужно, чтобы
-      // звук держался ощутимое число кадров подряд-ish, это гораздо больше похоже на речь.
-      const speechThreshold = 0.16;
-      if(rawLevel > speechThreshold) speechFrames++;
 
       frameCount++;
       if(frameCount % 2 === 0){ // сдвигаем ленту раз в два кадра — вдвое медленнее, чем раньше (каждый кадр)
@@ -1232,12 +1551,16 @@ function stopWave(){
   }
 }
 
-async function toggleMic(){
-  const btn = document.getElementById('micBtn');
+async function toggleMic(target){
+  target = target || 'name';
+  const btn = target === 'name' ? document.getElementById('micBtn')
+            : target === 'comment' ? document.getElementById('commentMicBtn')
+            : document.getElementById('noteAddBtn');
 
   if(btn.classList.contains('processing')) return; // идёт распознавание — игнорируем тап
 
   if(recording){
+    if(recordingTarget !== target) return; // запись уже идёт для другой цели — эту кнопку пока игнорируем
     // второй тап — заканчиваем запись, дальше всё происходит в mediaRecorder.onstop
     if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     return;
@@ -1271,6 +1594,7 @@ async function toggleMic(){
     stopWave();
     if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
     recording = false;
+    recordingTarget = null;
     btn.classList.remove('recording');
 
     if(!audioChunks.length){
@@ -1283,11 +1607,23 @@ async function toggleMic(){
       return;
     }
 
-    btn.classList.add('processing');
-
     const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
     const dataUrl = await fileToDataUrl(blob);
-    sheetAudioDataUrl = dataUrl; // сама запись сохранится в Таблицу при сохранении позиции, даже если распознавание ниже не удастся
+
+    if(target === 'note'){
+      // Звуковая заметка — просто копится клипом, без распознавания на клиенте вообще.
+      // Текст для поиска появится позже, но только на сервере, в отдельном листе —
+      // в самом приложении заметка так и остаётся только звуком, ничего не загромождает.
+      sheetAudioClips.push({ url: dataUrl, role: 'note' });
+      renderSheetNotes();
+      showToast('Заметка добавлена');
+      return;
+    }
+
+    // 'name' или 'comment' — запись сохраняется как диктовка и распознаётся сразу же,
+    // текст уходит в соответствующее поле. Сама запись тоже сохранится в Таблицу.
+    sheetAudioClips.push({ url: dataUrl, role: 'dictation' });
+    btn.classList.add('processing');
 
     const result = await sendToServer({ type:'transcribe', audio: dataUrl });
 
@@ -1296,9 +1632,10 @@ async function toggleMic(){
     if(result.ok && result.data && typeof result.data.text === 'string'){
       const recognized = result.data.text.trim();
       if(recognized){
-        const ta = document.getElementById('posText');
+        const fieldId = target === 'name' ? 'posText' : 'commentText';
+        const ta = document.getElementById(fieldId);
         ta.value = ta.value.trim() ? (ta.value.trim() + ', ' + recognized) : recognized;
-        onPosTextInput();
+        if(target === 'name') onPosTextInput();
       } else {
         showToast('Распознавание вернуло пустой текст');
       }
@@ -1309,9 +1646,10 @@ async function toggleMic(){
 
   mediaRecorder.start();
   recording = true;
+  recordingTarget = target;
   speechFrames = 0;
   btn.classList.add('recording');
-  startWave(stream);
+  startWave(stream, target === 'name'); // волна рисуется только у поля названия — у остальных нет своего холста
 }
 
 function stopMicVisual(){
@@ -1323,8 +1661,11 @@ function stopMicVisual(){
   }
   if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream = null; }
   recording = false;
-  const btn = document.getElementById('micBtn');
-  if(btn){ btn.classList.remove('recording'); btn.classList.remove('processing'); }
+  recordingTarget = null;
+  ['micBtn','commentMicBtn','noteAddBtn'].forEach(id=>{
+    const btn = document.getElementById(id);
+    if(btn){ btn.classList.remove('recording'); btn.classList.remove('processing'); }
+  });
 }
 
 async function addSheetPhoto(e){
@@ -1356,6 +1697,51 @@ function renderSheetPhotos(){
   });
 }
 
+// Комментарий свёрнут по умолчанию (пустой) — тап по "+ комментарий" разворачивает
+// компактное поле. Если комментарий уже есть — карточка при открытии сама начинает
+// в развёрнутом виде (см. openSheetEdit), сворачивать уже ненужно.
+function expandComment(){
+  commentExpanded = true;
+  document.getElementById('commentToggle').style.display = 'none';
+  document.getElementById('commentWrap').style.display = 'block';
+  document.getElementById('commentText').focus();
+}
+
+function renderSheetNotes(){
+  const container = document.getElementById('sheetNotesClips');
+  container.innerHTML = '';
+  sheetAudioClips.forEach((clip, idx) => {
+    if(clip.role !== 'note') return; // тут показываем только звуковые заметки, не диктовки названия/комментария
+    const card = document.createElement('div');
+    card.className = 'note-clip';
+    const isLocal = clip.url.startsWith('data:');
+    const player = document.createElement(isLocal ? 'audio' : 'a');
+    if(isLocal){
+      player.controls = true;
+      player.src = clip.url;
+    } else {
+      player.className = 'note-clip-link';
+      player.href = clip.url;
+      player.target = '_blank';
+      player.rel = 'noopener';
+      player.textContent = '▶ заметка ' + (idx + 1);
+    }
+    const del = document.createElement('button');
+    del.className = 'thumb-del';
+    del.textContent = '×';
+    del.onclick = (ev) => { ev.stopPropagation(); askRemoveSheetAudioClip(idx); };
+    card.appendChild(player);
+    card.appendChild(del);
+    container.appendChild(card);
+  });
+}
+
+function askRemoveSheetAudioClip(idx){
+  document.getElementById('confirmText').textContent = 'Удалить эту заметку?';
+  pendingConfirmAction = () => { sheetAudioClips.splice(idx, 1); renderSheetNotes(); };
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
 // Записывает то, что сейчас в полях карточки, в общий список positions[] и возвращает
 // сохранённый объект — используется и кнопкой "Сохранить", и автосохранением при
 // переключении на другую позицию/пачку без явного нажатия "Сохранить" (актуально
@@ -1366,6 +1752,7 @@ function persistCurrentSheetData(){
   const text = document.getElementById('posText').value.trim();
   const qty = Math.max(1, parseInt(document.getElementById('qtyInput').value) || 1);
   const num = parseInt(document.getElementById('sheetNum').textContent);
+  const comment = document.getElementById('commentText').value.trim();
   if(editingId === null && !text && !sheetPhotos.length) return null;
 
   // Ничего реально не поменялось с момента открытия — сравниваем с тем, что было
@@ -1375,8 +1762,9 @@ function persistCurrentSheetData(){
   if(editingId !== null && sheetOriginalSnapshot){
     const unchanged = text === sheetOriginalSnapshot.text &&
       qty === sheetOriginalSnapshot.qty &&
+      comment === sheetOriginalSnapshot.comment &&
       JSON.stringify(sheetPhotos) === sheetOriginalSnapshot.photos &&
-      sheetAudioDataUrl === sheetOriginalSnapshot.audio;
+      JSON.stringify(sheetAudioClips) === sheetOriginalSnapshot.audioClips;
     if(unchanged) return null;
   }
 
@@ -1385,7 +1773,7 @@ function persistCurrentSheetData(){
   }
   let savedObj;
   if(editingId===null){
-    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], audio: sheetAudioDataUrl };
+    savedObj = { id: nextId++, num: num, text: text || null, qty: qty, photos:[...sheetPhotos], comment: comment || null, audioClips:[...sheetAudioClips] };
     positions.push(savedObj);
   } else {
     // По видимому номеру позиции, а не по служебному id — id пересоздаётся заново при
@@ -1393,7 +1781,7 @@ function persistCurrentSheetData(){
     // была открыта, старый id уже никого не находит, и сохранение молча проваливается.
     // Номер позиции ("Позиция №1") — единственное, что в любом случае остаётся неизменным.
     const p = positions.find(x=>x.num===num);
-    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.audio = sheetAudioDataUrl; savedObj = p; }
+    if(p){ p.text = text || null; p.qty = qty; p.photos = [...sheetPhotos]; p.comment = comment || null; p.audioClips = [...sheetAudioClips]; savedObj = p; }
   }
   return savedObj;
 }
