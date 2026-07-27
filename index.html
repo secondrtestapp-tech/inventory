@@ -208,11 +208,10 @@
   .comment-wrap textarea{width:100%; min-height:64px; line-height:1.4; border:1px solid var(--line); border-radius:10px; padding:10px 56px 10px 12px; font-family:var(--sans); font-size:15px; color:var(--ink); resize:none; background:var(--surface);}
   .mic-btn-small{bottom:auto; top:10px;}
   .pack-comment-pad{padding:0 18px; margin-top:8px;}
-  .field-card{border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow:hidden;}
+  .field-card{border:1px solid var(--line); border-radius:10px; background:var(--surface); height:280px; overflow-x:hidden; overflow-y:auto;}
   .field-card textarea{border:none; border-radius:0; background:transparent;}
   .field-card .notes-row-inline{margin:0; padding:10px 12px 12px; border-top:1px solid var(--line);}
   .notes-row-inline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line);}
-  .notes-clips-scroll{max-height:180px; overflow-y:auto;}
 
   .note-add-btn{display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:2px dashed #C9C4B4; background:none; color:var(--ink-soft); font-size:14px; font-weight:600;}
   .note-add-btn svg{width:18px; height:18px; flex:none;}
@@ -236,7 +235,7 @@
   .confirm-card p{font-size:15px; margin:0 0 18px; color:var(--ink); line-height:1.4;}
   .confirm-actions{display:flex; gap:10px;}
   .btn-danger{flex:1; padding:13px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans); background:var(--danger); color:#fff;}
-  .btn-neutral{flex:1; padding:13px; border-radius:10px; border:1px solid var(--line); font-size:15px; font-weight:600; font-family:var(--sans); background:var(--surface); color:var(--ink);}
+  .btn-primary-confirm{flex:1; padding:13px; border-radius:10px; border:none; font-size:15px; font-weight:600; font-family:var(--sans); background:var(--ink); color:var(--paper);}
 
   .toast{
     position:fixed; left:50%; bottom:100px; transform:translateX(-50%) translateY(10px); max-width:82%; text-align:center;
@@ -307,7 +306,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
           <span>наговорить заметку</span>
         </button>
-        <div class="notes-clips notes-clips-scroll" id="packNotesClips"></div>
+        <div class="notes-clips" id="packNotesClips"></div>
       </div>
     </div>
   </div>
@@ -351,7 +350,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
           <span>наговорить заметку</span>
         </button>
-        <div class="notes-clips notes-clips-scroll" id="sheetNotesClips"></div>
+        <div class="notes-clips" id="sheetNotesClips"></div>
       </div>
     </div>
 
@@ -425,7 +424,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v71';
+const APP_VERSION = 'v72';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -769,7 +768,7 @@ function confirmNewPack(){
 // кнопкой "Перенести", а не "Удалить", и с конкретным указанием откуда и что именно
 // переносится, а не только куда.
 function askConfirmMove(targetPack){
-  const text = `Перенести позицию ${moveSourcePosNum} из пачки ${currentPackNum} в пачку ${targetPack}?`;
+  const text = `Перенести позицию ${moveSourcePosNum}<br>из пачки ${currentPackNum} в пачку ${targetPack}?`;
   openConfirm(text, 'Перенести', false, () => doMovePosition(targetPack));
 }
 
@@ -1833,10 +1832,10 @@ let pendingConfirmAction = null; // общее окно подтверждени
 // Общее окно подтверждения — text вопрос, label подпись на кнопке, danger — красная
 // (для разрушительных действий) или нейтральная (для остальных, вроде переноса).
 function openConfirm(text, label, danger, action){
-  document.getElementById('confirmText').textContent = text;
+  document.getElementById('confirmText').innerHTML = text; // innerHTML, а не textContent — нужно для <br> в двухстрочных вопросах; весь передаваемый текст статический или собран из номеров, не из пользовательского ввода
   const btn = document.getElementById('confirmActionBtn');
   btn.textContent = label;
-  btn.className = danger ? 'btn-danger' : 'btn-neutral';
+  btn.className = danger ? 'btn-danger' : 'btn-primary-confirm';
   pendingConfirmAction = action;
   document.getElementById('confirmOverlay').classList.add('open');
 }
