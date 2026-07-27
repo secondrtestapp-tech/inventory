@@ -214,6 +214,7 @@
   .note-clip{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--line);}
   .note-clip audio{flex:1; height:32px; min-width:0;}
   .note-clip a.note-clip-link{flex:1; font-size:14px; color:var(--steel); font-weight:600; text-decoration:none;}
+  .note-clip a.note-clip-fallback{flex:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:16px; text-decoration:none;}
   .note-clip .thumb-del{position:static; flex:none; width:24px; height:24px; border:none;}
 
   .note{margin:0 18px 18px; padding:12px 14px; background:#FFF3E8; border:1px solid #F3D8BC; border-radius:10px; font-size:12.5px; color:#8A4A17; line-height:1.5;}
@@ -417,7 +418,7 @@
 </div>
 
 <script>
-const APP_VERSION = 'v67';
+const APP_VERSION = 'v68';
 let positions = [];
 let posCounter = 0;
 let nextId = 1;
@@ -1151,6 +1152,19 @@ function driveImgUrl(url){
   return 'https://lh3.googleusercontent.com/d/' + m[1] + '=w1000';
 }
 
+// То же самое, что driveImgUrl, только для звука — превращает обычную ссылку на файл
+// Диска в прямую, которую браузер может проиграть сразу через <audio>, без перехода
+// на отдельную страницу. Раньше уже сохранённые заметки открывались отдельной
+// вкладкой — надёжно, но неодинаково со свежезаписанными, которые проигрываются
+// прямо на месте.
+function driveAudioUrl(url){
+  if(!url) return url;
+  if(url.startsWith('data:')) return url; // локальный, ещё не отправленный клип
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(!m) return url;
+  return 'https://drive.google.com/uc?export=download&id=' + m[1];
+}
+
 async function addPackPhoto(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -1207,18 +1221,20 @@ function renderPackNotes(){
     const card = document.createElement('div');
     card.className = 'note-clip';
     const isLocal = url.startsWith('data:');
-    const player = document.createElement(isLocal ? 'audio' : 'a');
-    if(isLocal){
-      player.controls = true;
-      player.src = url;
-    } else {
-      player.className = 'note-clip-link';
-      player.href = url;
-      player.target = '_blank';
-      player.rel = 'noopener';
-      player.textContent = '▶ заметка ' + (idx + 1);
-    }
+    const player = document.createElement('audio');
+    player.controls = true;
+    player.src = isLocal ? url : driveAudioUrl(url);
     card.appendChild(player);
+    if(!isLocal){
+      const fallback = document.createElement('a');
+      fallback.className = 'note-clip-fallback';
+      fallback.href = url;
+      fallback.target = '_blank';
+      fallback.rel = 'noopener';
+      fallback.textContent = '↗';
+      fallback.title = 'открыть отдельно, если не проигрывается';
+      card.appendChild(fallback);
+    }
     container.appendChild(card);
   });
 }
@@ -1715,22 +1731,25 @@ function renderSheetNotes(){
     const card = document.createElement('div');
     card.className = 'note-clip';
     const isLocal = clip.url.startsWith('data:');
-    const player = document.createElement(isLocal ? 'audio' : 'a');
-    if(isLocal){
-      player.controls = true;
-      player.src = clip.url;
-    } else {
-      player.className = 'note-clip-link';
-      player.href = clip.url;
-      player.target = '_blank';
-      player.rel = 'noopener';
-      player.textContent = '▶ заметка ' + (idx + 1);
+    const player = document.createElement('audio');
+    player.controls = true;
+    player.src = isLocal ? clip.url : driveAudioUrl(clip.url);
+    card.appendChild(player);
+    if(!isLocal){
+      // запасной вариант — если проигрывание на месте вдруг не сработает у конкретного файла
+      const fallback = document.createElement('a');
+      fallback.className = 'note-clip-fallback';
+      fallback.href = clip.url;
+      fallback.target = '_blank';
+      fallback.rel = 'noopener';
+      fallback.textContent = '↗';
+      fallback.title = 'открыть отдельно, если не проигрывается';
+      card.appendChild(fallback);
     }
     const del = document.createElement('button');
     del.className = 'thumb-del';
     del.textContent = '×';
     del.onclick = (ev) => { ev.stopPropagation(); askRemoveSheetAudioClip(idx); };
-    card.appendChild(player);
     card.appendChild(del);
     container.appendChild(card);
   });
